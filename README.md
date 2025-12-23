@@ -15,7 +15,7 @@ n8n 社群節點，透過 API 存取 Excel 檔案，具備**並行安全保護**
 - ❌ 難以處理多人同時提交的 Webhook 表單
 
 ### 解決方案
-本節點搭配 [Excel API Server](https://github.com/yourusername/excel-api-server) 提供：
+本節點搭配 [Excel API Server](https://github.com/code4Copilot/excel-api-server) 提供：
 - ✅ **檔案鎖定** - 自動佇列管理並行請求
 - ✅ **資料完整性** - 無資料遺失或損毀
 - ✅ **多使用者支援** - 完美適用於多人提交的 HTML 表單
@@ -34,7 +34,7 @@ npm install n8n-nodes-excel-api
 
 ```bash
 # 1. 複製儲存庫
-git clone https://github.com/yourusername/n8n-nodes-excel-api.git
+git clone https://github.com/code4Copilot/n8n-nodes-excel-api.git
 cd n8n-nodes-excel-api
 
 # 2. 安裝相依套件
@@ -64,7 +64,7 @@ n8n start
 
 **必須先執行 Excel API Server！**
 
-安裝並啟動 [Excel API Server](https://github.com/yourusername/excel-api-server)：
+安裝並啟動 [Excel API Server](https://github.com/code4Copilot/excel-api-server)：
 
 ```bash
 # 使用 Docker 快速啟動
@@ -75,7 +75,7 @@ docker run -d \
   yourusername/excel-api-server
 ```
 
-詳細資訊請參閱 [Excel API Server 文件](https://github.com/yourusername/excel-api-server)。
+詳細資訊請參閱 [Excel API Server 文件](https://github.com/code4Copilot/excel-api-server)。
 
 ## 🔧 設定
 
@@ -504,12 +504,12 @@ MIT 授權 - 詳見 [LICENSE](LICENSE) 檔案
 
 ## 🔗 相關專案
 
-- [Excel API Server](https://github.com/yourusername/excel-api-server) - 後端 API 伺服器（必要）
+- [Excel API Server](https://github.com/code4Copilot/excel-api-server) - 後端 API 伺服器（必要）
 - [n8n](https://github.com/n8n-io/n8n) - 工作流程自動化工具
 
 ## 📧 支援
 
-- GitHub Issues：[回報問題](https://github.com/yourusername/n8n-nodes-excel-api/issues)
+- GitHub Issues：[回報問題](https://github.com/code4Copilot/n8n-nodes-excel-api/issues)
 - Email：your.email@example.com
 - n8n 社群：[n8n 論壇](https://community.n8n.io)
 
