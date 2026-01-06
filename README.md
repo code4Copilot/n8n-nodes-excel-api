@@ -173,19 +173,48 @@ docker run -d \
 #### 依查找（Lookup）
 透過查找特定欄位的值來找到要更新的列。
 
-**範例：**
+**處理模式 (Process Mode)：**
+
+##### 處理所有符合記錄 (All Matching Records) - 預設
+更新所有符合條件的列，適用於批次更新場景。
+
+**範例：更新所有技術部員工的狀態**
+```json
+{
+  "operation": "update",
+  "identifyBy": "lookup",
+  "lookupColumn": "部門",
+  "lookupValue": "技術部",
+  "processMode": "all",
+  "valuesToSet": {
+    "狀態": "已審核",
+    "審核日期": "2026-01-06"
+  }
+}
+```
+
+##### 僅處理第一筆 (First Match Only)
+只更新第一筆符合的記錄，適用於唯一識別碼查找。
+
+**範例：更新特定員工的資料**
 ```json
 {
   "operation": "update",
   "identifyBy": "lookup",
   "lookupColumn": "員工編號",
   "lookupValue": "E100",
+  "processMode": "first",
   "valuesToSet": {
     "薪資": "80000",
     "職位": "資深經理"
   }
 }
 ```
+
+**💡 使用建議：**
+- 使用唯一識別碼（如員工編號、Email）查找時，建議使用 `processMode: "first"` 以提升效能
+- 需要批次更新多筆記錄時，使用 `processMode: "all"`
+- 預設值為 `"all"` 以確保不會遺漏任何符合的記錄
 
 ### 4. Delete（刪除）
 從工作表中刪除一列。
@@ -202,14 +231,42 @@ docker run -d \
 ```
 
 #### 依查找
+透過查找特定欄位的值來找到要刪除的列。
+
+**處理模式 (Process Mode)：**
+
+##### 處理所有符合記錄 (All Matching Records) - 預設
+刪除所有符合條件的列。
+
+**範例：刪除所有已離職員工**
+```json
+{
+  "operation": "delete",
+  "identifyBy": "lookup",
+  "lookupColumn": "狀態",
+  "lookupValue": "已離職",
+  "processMode": "all"
+}
+```
+
+##### 僅處理第一筆 (First Match Only)
+只刪除第一筆符合的記錄。
+
+**範例：刪除特定員工**
 ```json
 {
   "operation": "delete",
   "identifyBy": "lookup",
   "lookupColumn": "員工編號",
-  "lookupValue": "E100"
+  "lookupValue": "E100",
+  "processMode": "first"
 }
 ```
+
+**⚠️ 注意事項：**
+- 刪除操作無法復原，請謹慎使用
+- 使用唯一識別碼查找時，建議使用 `processMode: "first"`
+- 批次刪除時務必確認查找條件正確，避免誤刪資料
 
 ### 5. Batch（批次）
 一次執行多個操作（更有效率）。
@@ -345,12 +402,68 @@ document.getElementById('registrationForm').addEventListener('submit', async (e)
 │                  │  識別方式：Lookup
 │                  │  查找欄位：員工編號
 │                  │  查找值：{{ $json.body.employeeId }}
+│                  │  處理模式：First Match Only (僅處理第一筆)
 │                  │  設定值：{ "薪資": "{{ $json.body.salary }}" }
 └────────┬─────────┘
          │
          ▼
 ┌──────────────────┐
 │ Respond Webhook  │  回傳更新結果
+└──────────────────┘
+```
+
+### 範例 5：批次更新部門狀態
+
+**使用情境：** 一次審核整個部門的所有員工
+
+```
+┌──────────────────┐
+│ Webhook          │  接收批次審核請求
+│ POST /approve    │  { "department": "技術部", "status": "已審核" }
+└────────┬─────────┘
+         │
+         ▼
+┌──────────────────┐
+│ Excel API        │  操作：Update
+│                  │  識別方式：Lookup
+│                  │  查找欄位：部門
+│                  │  查找值：{{ $json.body.department }}
+│                  │  處理模式：All Matching Records (處理所有符合)
+│                  │  設定值：{
+│                  │    "狀態": "{{ $json.body.status }}",
+│                  │    "審核日期": "{{ $now.format('YYYY-MM-DD') }}",
+│                  │    "審核人": "{{ $json.body.reviewer }}"
+│                  │  }
+└────────┬─────────┘
+         │
+         ▼
+┌──────────────────┐
+│ Respond Webhook  │  回傳：已更新 N 筆記錄
+└──────────────────┘
+```
+
+### 範例 6：清理過期資料
+
+**使用情境：** 定期刪除已離職超過一年的員工記錄
+
+```
+┌──────────────────┐
+│ Schedule         │  每月 1 號執行
+│ 0 0 1 * *        │
+└────────┬─────────┘
+         │
+         ▼
+┌──────────────────┐
+│ Excel API        │  操作：Delete
+│                  │  識別方式：Lookup
+│                  │  查找欄位：狀態
+│                  │  查找值：已離職
+│                  │  處理模式：All Matching Records (刪除所有符合)
+└────────┬─────────┘
+         │
+         ▼
+┌──────────────────┐
+│ Send Email       │  通知管理員：已清理 N 筆記錄
 └──────────────────┘
 ```
 

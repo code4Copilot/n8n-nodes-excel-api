@@ -189,6 +189,33 @@ export class ExcelApi implements INodeType {
 				description: 'Value to search for in the lookup column',
 				hint: 'Can use expressions like {{ $json.id }}',
 			},
+			// NEW: Process Mode (for lookup method)
+			{
+				displayName: 'Process Mode',
+				name: 'processMode',
+				type: 'options',
+				displayOptions: { 
+					show: { 
+						operation: ['update', 'delete'],
+						identifyBy: ['lookup']
+					} 
+				},
+				options: [
+					{ 
+						name: 'All Matching Records', 
+						value: 'all', 
+						description: 'Process all records that match the lookup condition' 
+					},
+					{ 
+						name: 'First Match Only', 
+						value: 'first', 
+						description: 'Process only the first matching record' 
+					},
+				],
+				default: 'all',
+				description: 'Choose whether to process all matching records or just the first one',
+				hint: '💡 "All Matching Records" will update/delete every row where the lookup column matches the lookup value',
+			},
 			// Update operation: Values to Set
 			{
 				displayName: 'Values to Set',
@@ -443,8 +470,11 @@ export class ExcelApi implements INodeType {
 					} else if (identifyBy === 'lookup') {
 						const lookupColumn = this.getNodeParameter('lookupColumn', i) as string;
 						const lookupValue = this.getNodeParameter('lookupValue', i) as string;
+						const processMode = this.getNodeParameter('processMode', i) as string;
+						
 						requestBody.lookup_column = lookupColumn;
 						requestBody.lookup_value = lookupValue;
+						requestBody.process_all = (processMode === 'all');
 					}
 
 					responseData = await this.helpers.request({
@@ -457,7 +487,15 @@ export class ExcelApi implements INodeType {
 						body: requestBody,
 						json: true,
 					});
-
+				// Check if any rows were affected
+				if (responseData.success && responseData.rows_affected === 0) {
+					throw new NodeOperationError(
+						this.getNode(),
+						identifyBy === 'lookup' 
+							? `No matching rows found. Lookup column: "${requestBody.lookup_column}", Lookup value: "${requestBody.lookup_value}"`
+							: `Row ${requestBody.row} not found or is protected (header row cannot be updated)`,
+					);
+				}
 				} else if (operation === 'delete') {
 					// Get identification method
 					const identifyBy = this.getNodeParameter('identifyBy', i) as string;
@@ -474,8 +512,11 @@ export class ExcelApi implements INodeType {
 					} else if (identifyBy === 'lookup') {
 						const lookupColumn = this.getNodeParameter('lookupColumn', i) as string;
 						const lookupValue = this.getNodeParameter('lookupValue', i) as string;
+						const processMode = this.getNodeParameter('processMode', i) as string;
+						
 						requestBody.lookup_column = lookupColumn;
 						requestBody.lookup_value = lookupValue;
+						requestBody.process_all = (processMode === 'all');
 					}
 
 					responseData = await this.helpers.request({
@@ -488,6 +529,16 @@ export class ExcelApi implements INodeType {
 						body: requestBody,
 						json: true,
 					});
+
+					// Check if any rows were affected
+					if (responseData.success && responseData.rows_affected === 0) {
+						throw new NodeOperationError(
+							this.getNode(),
+							identifyBy === 'lookup' 
+								? `No matching rows found. Lookup column: "${requestBody.lookup_column}", Lookup value: "${requestBody.lookup_value}"`
+								: `Row ${requestBody.row} not found or is protected (header row cannot be deleted)`,
+						);
+					}
 
 				} else if (operation === 'batch') {
 					const batchOperationsRaw = this.getNodeParameter('batchOperations', i) as string;

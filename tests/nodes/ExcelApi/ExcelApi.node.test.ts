@@ -277,10 +277,11 @@ describe('ExcelApi Node', () => {
       expect(result[0][0].json.row).toBe(5);
     });
 
-    it('should update row by lookup', async () => {
+    it('should update row by lookup - first match only', async () => {
       mockFunctions.setParameter('identifyBy', 'lookup', 0);
       mockFunctions.setParameter('lookupColumn', '員工編號', 0);
       mockFunctions.setParameter('lookupValue', 'E100', 0);
+      mockFunctions.setParameter('processMode', 'first', 0);
       mockFunctions.setParameter('valuesToSet', JSON.stringify({
         '薪資': '80000',
       }), 0);
@@ -292,6 +293,7 @@ describe('ExcelApi Node', () => {
           message: 'Row updated successfully',
           row: 5,
           matched_value: 'E100',
+          rows_affected: 1,
         }
       );
 
@@ -300,6 +302,114 @@ describe('ExcelApi Node', () => {
 
       expect(result[0][0].json.success).toBe(true);
       expect(result[0][0].json.matched_value).toBe('E100');
+      expect(result[0][0].json.rows_affected).toBe(1);
+      
+      // Verify that process_all is set to false
+      const requestBody = mockFunctions.getLastRequestBody();
+      expect(requestBody.process_all).toBe(false);
+    });
+
+    it('should update all matching rows by lookup', async () => {
+      mockFunctions.setParameter('identifyBy', 'lookup', 0);
+      mockFunctions.setParameter('lookupColumn', '部門', 0);
+      mockFunctions.setParameter('lookupValue', '技術部', 0);
+      mockFunctions.setParameter('processMode', 'all', 0);
+      mockFunctions.setParameter('valuesToSet', JSON.stringify({
+        '狀態': '已審核',
+      }), 0);
+
+      mockFunctions.setRequestResponse(
+        'http://localhost:8000/api/excel/update_advanced',
+        {
+          success: true,
+          message: 'Multiple rows updated successfully',
+          rows_affected: 5,
+          matched_value: '技術部',
+        }
+      );
+
+      const executeFunctions = mockFunctions.getExecuteFunctions();
+      const result = await excelApi.execute.call(executeFunctions);
+
+      expect(result[0][0].json.success).toBe(true);
+      expect(result[0][0].json.rows_affected).toBe(5);
+      
+      // Verify that process_all is set to true
+      const requestBody = mockFunctions.getLastRequestBody();
+      expect(requestBody.process_all).toBe(true);
+    });
+
+    it('should default to processMode "all" when not specified', async () => {
+      mockFunctions.setParameter('identifyBy', 'lookup', 0);
+      mockFunctions.setParameter('lookupColumn', '員工編號', 0);
+      mockFunctions.setParameter('lookupValue', 'E100', 0);
+      mockFunctions.setParameter('processMode', 'all', 0); // Default value
+      mockFunctions.setParameter('valuesToSet', JSON.stringify({
+        '薪資': '90000',
+      }), 0);
+
+      mockFunctions.setRequestResponse(
+        'http://localhost:8000/api/excel/update_advanced',
+        {
+          success: true,
+          message: 'Row updated successfully',
+          rows_affected: 1,
+        }
+      );
+
+      const executeFunctions = mockFunctions.getExecuteFunctions();
+      const result = await excelApi.execute.call(executeFunctions);
+
+      expect(result[0][0].json.success).toBe(true);
+      
+      const requestBody = mockFunctions.getLastRequestBody();
+      expect(requestBody.process_all).toBe(true);
+    });
+
+    it('should throw error when no matching rows found (lookup)', async () => {
+      mockFunctions.setParameter('identifyBy', 'lookup', 0);
+      mockFunctions.setParameter('lookupColumn', '員工編號', 0);
+      mockFunctions.setParameter('lookupValue', 'E999', 0);
+      mockFunctions.setParameter('processMode', 'first', 0);
+      mockFunctions.setParameter('valuesToSet', JSON.stringify({
+        '薪資': '90000',
+      }), 0);
+
+      mockFunctions.setRequestResponse(
+        'http://localhost:8000/api/excel/update_advanced',
+        {
+          success: true,
+          rows_affected: 0, // No rows affected
+        }
+      );
+
+      const executeFunctions = mockFunctions.getExecuteFunctions();
+
+      await expect(
+        excelApi.execute.call(executeFunctions)
+      ).rejects.toThrow('No matching rows found. Lookup column: "員工編號", Lookup value: "E999"');
+    });
+
+    it('should throw error when row number not found', async () => {
+      mockFunctions.setParameter('identifyBy', 'rowNumber', 0);
+      mockFunctions.setParameter('rowNumber', 999, 0);
+      mockFunctions.setParameter('valuesToSet', JSON.stringify({
+        '薪資': '90000',
+      }), 0);
+
+      mockFunctions.setRequestResponse(
+        'http://localhost:8000/api/excel/update_advanced',
+        {
+          success: true,
+          rows_affected: 0, // No rows affected
+        }
+      );
+
+      const executeFunctions = mockFunctions.getExecuteFunctions();
+
+      await expect(
+        excelApi.execute.call(executeFunctions)
+      ).rejects.toThrow('Row 999 not found or is protected');
     });
   });
 
@@ -330,16 +440,18 @@ describe('ExcelApi Node', () => {
       expect(result[0][0].json.success).toBe(true);
     });
 
-    it('should delete row by lookup', async () => {
+    it('should delete row by lookup - first match only', async () => {
       mockFunctions.setParameter('identifyBy', 'lookup', 0);
       mockFunctions.setParameter('lookupColumn', '員工編號', 0);
       mockFunctions.setParameter('lookupValue', 'E100', 0);
+      mockFunctions.setParameter('processMode', 'first', 0);
 
       mockFunctions.setRequestResponse(
         'http://localhost:8000/api/excel/delete_advanced',
         {
           success: true,
           message: 'Row deleted successfully',
+          rows_affected: 1,
         }
       );
 
@@ -347,6 +459,101 @@ describe('ExcelApi Node', () => {
       const result = await excelApi.execute.call(executeFunctions);
 
       expect(result[0][0].json.success).toBe(true);
+      expect(result[0][0].json.rows_affected).toBe(1);
+      
+      // Verify that process_all is set to false
+      const requestBody = mockFunctions.getLastRequestBody();
+      expect(requestBody.process_all).toBe(false);
+    });
+
+    it('should delete all matching rows by lookup', async () => {
+      mockFunctions.setParameter('identifyBy', 'lookup', 0);
+      mockFunctions.setParameter('lookupColumn', '狀態', 0);
+      mockFunctions.setParameter('lookupValue', '已離職', 0);
+      mockFunctions.setParameter('processMode', 'all', 0);
+
+      mockFunctions.setRequestResponse(
+        'http://localhost:8000/api/excel/delete_advanced',
+        {
+          success: true,
+          message: 'Multiple rows deleted successfully',
+          rows_affected: 3,
+        }
+      );
+
+      const executeFunctions = mockFunctions.getExecuteFunctions();
+      const result = await excelApi.execute.call(executeFunctions);
+
+      expect(result[0][0].json.success).toBe(true);
+      expect(result[0][0].json.rows_affected).toBe(3);
+      
+      // Verify that process_all is set to true
+      const requestBody = mockFunctions.getLastRequestBody();
+      expect(requestBody.process_all).toBe(true);
+    });
+
+    it('should default to processMode "all" when not specified', async () => {
+      mockFunctions.setParameter('identifyBy', 'lookup', 0);
+      mockFunctions.setParameter('lookupColumn', '員工編號', 0);
+      mockFunctions.setParameter('lookupValue', 'E999', 0);
+      mockFunctions.setParameter('processMode', 'all', 0); // Default value
+
+      mockFunctions.setRequestResponse(
+        'http://localhost:8000/api/excel/delete_advanced',
+        {
+          success: true,
+          message: 'Row deleted successfully',
+          rows_affected: 1,
+        }
+      );
+
+      const executeFunctions = mockFunctions.getExecuteFunctions();
+      const result = await excelApi.execute.call(executeFunctions);
+
+      expect(result[0][0].json.success).toBe(true);
+      
+      const requestBody = mockFunctions.getLastRequestBody();
+      expect(requestBody.process_all).toBe(true);
+    });
+
+    it('should throw error when no matching rows found (lookup)', async () => {
+      mockFunctions.setParameter('identifyBy', 'lookup', 0);
+      mockFunctions.setParameter('lookupColumn', '員工編號', 0);
+      mockFunctions.setParameter('lookupValue', 'E999', 0);
+      mockFunctions.setParameter('processMode', 'first', 0);
+
+      mockFunctions.setRequestResponse(
+        'http://localhost:8000/api/excel/delete_advanced',
+        {
+          success: true,
+          rows_affected: 0, // No rows affected
+        }
+      );
+
+      const executeFunctions = mockFunctions.getExecuteFunctions();
+
+      await expect(
+        excelApi.execute.call(executeFunctions)
+      ).rejects.toThrow('No matching rows found. Lookup column: "員工編號", Lookup value: "E999"');
+    });
+
+    it('should throw error when row number not found', async () => {
+      mockFunctions.setParameter('identifyBy', 'rowNumber', 0);
+      mockFunctions.setParameter('rowNumber', 999, 0);
+
+      mockFunctions.setRequestResponse(
+        'http://localhost:8000/api/excel/delete_advanced',
+        {
+          success: true,
+          rows_affected: 0, // No rows affected
+        }
+      );
+
+      const executeFunctions = mockFunctions.getExecuteFunctions();
+
+      await expect(
+        excelApi.execute.call(executeFunctions)
+      ).rejects.toThrow('Row 999 not found or is protected');
     });
   });
 

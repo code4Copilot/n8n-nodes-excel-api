@@ -6,6 +6,7 @@ export class MockExecuteFunctions {
   private inputData: any[] = [];
   private nodeData: any = {};
   private requestResponses: Map<string, any> = new Map();
+  private lastRequestBody: any = null;
 
   constructor() {
     this.nodeData = {
@@ -33,6 +34,10 @@ export class MockExecuteFunctions {
     this.requestResponses.set(url, response);
   }
 
+  getLastRequestBody(): any {
+    return this.lastRequestBody;
+  }
+
   getExecuteFunctions(): IExecuteFunctions {
     return {
       getNodeParameter: (parameterName: string, itemIndex: number) => {
@@ -56,6 +61,8 @@ export class MockExecuteFunctions {
           if (response.error) {
             throw response.error;
           }
+          // Store the request body for testing
+          this.lastRequestBody = options.body;
           return response;
         },
       },
