@@ -113,6 +113,90 @@ describe('ExcelApi Node', () => {
         expect(sheets).toEqual([]);
       });
     });
+
+    describe('getColumnNames', () => {
+      it('should load column names from selected file and sheet', async () => {
+        mockFunctions.setParameter('fileName', 'employees.xlsx');
+        mockFunctions.setParameter('sheetName', 'Sheet1');
+        mockFunctions.setRequestResponse(
+          'http://localhost:8000/api/excel/headers?file=employees.xlsx&sheet=Sheet1',
+          {
+            success: true,
+            headers: ['員工編號', '姓名', '部門', '薪資', '入職日期'],
+          }
+        );
+
+        const loadFunctions = mockFunctions.getLoadOptionsFunctions();
+        const columns = await excelApi.methods.loadOptions.getColumnNames.call(
+          loadFunctions
+        );
+
+        expect(columns).toHaveLength(5);
+        expect(columns[0]).toEqual({ name: '員工編號', value: '員工編號' });
+        expect(columns[1]).toEqual({ name: '姓名', value: '姓名' });
+        expect(columns[2]).toEqual({ name: '部門', value: '部門' });
+      });
+
+      it('should return empty array when no file selected', async () => {
+        mockFunctions.setParameter('fileName', '');
+        mockFunctions.setParameter('sheetName', 'Sheet1');
+
+        const loadFunctions = mockFunctions.getLoadOptionsFunctions();
+        const columns = await excelApi.methods.loadOptions.getColumnNames.call(
+          loadFunctions
+        );
+
+        expect(columns).toEqual([]);
+      });
+
+      it('should return empty array when no sheet selected', async () => {
+        mockFunctions.setParameter('fileName', 'employees.xlsx');
+        mockFunctions.setParameter('sheetName', '');
+
+        const loadFunctions = mockFunctions.getLoadOptionsFunctions();
+        const columns = await excelApi.methods.loadOptions.getColumnNames.call(
+          loadFunctions
+        );
+
+        expect(columns).toEqual([]);
+      });
+
+      it('should return empty array on API error', async () => {
+        mockFunctions.setParameter('fileName', 'employees.xlsx');
+        mockFunctions.setParameter('sheetName', 'Sheet1');
+        mockFunctions.setRequestResponse(
+          'http://localhost:8000/api/excel/headers?file=employees.xlsx&sheet=Sheet1',
+          { error: new Error('API Error') }
+        );
+
+        const loadFunctions = mockFunctions.getLoadOptionsFunctions();
+        const columns = await excelApi.methods.loadOptions.getColumnNames.call(
+          loadFunctions
+        );
+
+        expect(columns).toEqual([]);
+      });
+
+      it('should handle special characters in file and sheet names', async () => {
+        mockFunctions.setParameter('fileName', 'test file 測試.xlsx');
+        mockFunctions.setParameter('sheetName', 'Sheet 工作表');
+        mockFunctions.setRequestResponse(
+          'http://localhost:8000/api/excel/headers?file=test%20file%20%E6%B8%AC%E8%A9%A6.xlsx&sheet=Sheet%20%E5%B7%A5%E4%BD%9C%E8%A1%A8',
+          {
+            success: true,
+            headers: ['Column A', 'Column B'],
+          }
+        );
+
+        const loadFunctions = mockFunctions.getLoadOptionsFunctions();
+        const columns = await excelApi.methods.loadOptions.getColumnNames.call(
+          loadFunctions
+        );
+
+        expect(columns).toHaveLength(2);
+        expect(columns[0]).toEqual({ name: 'Column A', value: 'Column A' });
+      });
+    });
   });
 
   describe('Execute Method - Append Operation', () => {
@@ -379,7 +463,7 @@ describe('ExcelApi Node', () => {
         'http://localhost:8000/api/excel/update_advanced',
         {
           success: true,
-          rows_affected: 0, // No rows affected
+          updated_count: 0, // No rows affected
         }
       );
 
@@ -401,7 +485,7 @@ describe('ExcelApi Node', () => {
         'http://localhost:8000/api/excel/update_advanced',
         {
           success: true,
-          rows_affected: 0, // No rows affected
+          updated_count: 0, // No rows affected
         }
       );
 
@@ -526,7 +610,7 @@ describe('ExcelApi Node', () => {
         'http://localhost:8000/api/excel/delete_advanced',
         {
           success: true,
-          rows_affected: 0, // No rows affected
+          deleted_count: 0, // No rows affected
         }
       );
 
@@ -545,7 +629,7 @@ describe('ExcelApi Node', () => {
         'http://localhost:8000/api/excel/delete_advanced',
         {
           success: true,
-          rows_affected: 0, // No rows affected
+          deleted_count: 0, // No rows affected
         }
       );
 
@@ -621,6 +705,210 @@ describe('ExcelApi Node', () => {
       await expect(
         excelApi.execute.call(executeFunctions)
       ).rejects.toThrow();
+    });
+  });
+
+  describe('Lookup Column Selection Feature', () => {
+    describe('Integration Test - Column Selection to Execution', () => {
+      it('should load columns and use selected column for update operation', async () => {
+        // Step 1: Load column names
+        mockFunctions.setParameter('fileName', 'employees.xlsx');
+        mockFunctions.setParameter('sheetName', 'Sheet1');
+        mockFunctions.setRequestResponse(
+          'http://localhost:8000/api/excel/headers?file=employees.xlsx&sheet=Sheet1',
+          {
+            success: true,
+            headers: ['員工編號', '姓名', '部門', '薪資'],
+          }
+        );
+
+        const loadFunctions = mockFunctions.getLoadOptionsFunctions();
+        const columns = await excelApi.methods.loadOptions.getColumnNames.call(
+          loadFunctions
+        );
+
+        expect(columns).toHaveLength(4);
+        expect(columns.map(c => c.value)).toContain('員工編號');
+
+        // Step 2: Use the selected column in update operation
+        mockFunctions.setParameter('operation', 'update', 0);
+        mockFunctions.setParameter('identifyBy', 'lookup', 0);
+        mockFunctions.setParameter('lookupColumn', '員工編號', 0); // Selected from dropdown
+        mockFunctions.setParameter('lookupValue', 'E001', 0);
+        mockFunctions.setParameter('processMode', 'first', 0);
+        mockFunctions.setParameter('valuesToSet', JSON.stringify({
+          '薪資': '85000',
+        }), 0);
+        mockFunctions.setInputData([{ json: {} }]);
+
+        mockFunctions.setRequestResponse(
+          'http://localhost:8000/api/excel/update_advanced',
+          {
+            success: true,
+            message: 'Row updated successfully',
+            row: 2,
+            rows_affected: 1,
+          }
+        );
+
+        const executeFunctions = mockFunctions.getExecuteFunctions();
+        const result = await excelApi.execute.call(executeFunctions);
+
+        expect(result[0][0].json.success).toBe(true);
+        
+        // Verify that the correct lookup column was sent to API
+        const requestBody = mockFunctions.getLastRequestBody();
+        expect(requestBody.lookup_column).toBe('員工編號');
+        expect(requestBody.lookup_value).toBe('E001');
+      });
+
+      it('should load columns and use selected column for delete operation', async () => {
+        // Step 1: Load column names
+        mockFunctions.setParameter('fileName', 'employees.xlsx');
+        mockFunctions.setParameter('sheetName', 'Sheet1');
+        mockFunctions.setRequestResponse(
+          'http://localhost:8000/api/excel/headers?file=employees.xlsx&sheet=Sheet1',
+          {
+            success: true,
+            headers: ['員工編號', '姓名', '狀態'],
+          }
+        );
+
+        const loadFunctions = mockFunctions.getLoadOptionsFunctions();
+        const columns = await excelApi.methods.loadOptions.getColumnNames.call(
+          loadFunctions
+        );
+
+        expect(columns).toHaveLength(3);
+        expect(columns.map(c => c.value)).toContain('狀態');
+
+        // Step 2: Use the selected column in delete operation
+        mockFunctions.setParameter('operation', 'delete', 0);
+        mockFunctions.setParameter('identifyBy', 'lookup', 0);
+        mockFunctions.setParameter('lookupColumn', '狀態', 0); // Selected from dropdown
+        mockFunctions.setParameter('lookupValue', '已離職', 0);
+        mockFunctions.setParameter('processMode', 'all', 0);
+        mockFunctions.setInputData([{ json: {} }]);
+
+        mockFunctions.setRequestResponse(
+          'http://localhost:8000/api/excel/delete_advanced',
+          {
+            success: true,
+            message: 'Multiple rows deleted successfully',
+            rows_affected: 3,
+          }
+        );
+
+        const executeFunctions = mockFunctions.getExecuteFunctions();
+        const result = await excelApi.execute.call(executeFunctions);
+
+        expect(result[0][0].json.success).toBe(true);
+        expect(result[0][0].json.rows_affected).toBe(3);
+        
+        // Verify that the correct lookup column was sent to API
+        const requestBody = mockFunctions.getLastRequestBody();
+        expect(requestBody.lookup_column).toBe('狀態');
+        expect(requestBody.lookup_value).toBe('已離職');
+        expect(requestBody.process_all).toBe(true);
+      });
+
+      it('should handle columns with special characters and spaces', async () => {
+        mockFunctions.setParameter('fileName', 'test.xlsx');
+        mockFunctions.setParameter('sheetName', 'Sheet1');
+        mockFunctions.setRequestResponse(
+          'http://localhost:8000/api/excel/headers?file=test.xlsx&sheet=Sheet1',
+          {
+            success: true,
+            headers: ['Employee ID', 'Full Name (EN)', '電子郵件地址', 'Department/部門'],
+          }
+        );
+
+        const loadFunctions = mockFunctions.getLoadOptionsFunctions();
+        const columns = await excelApi.methods.loadOptions.getColumnNames.call(
+          loadFunctions
+        );
+
+        expect(columns).toHaveLength(4);
+        expect(columns[1].value).toBe('Full Name (EN)');
+        expect(columns[3].value).toBe('Department/部門');
+
+        // Use column with special characters
+        mockFunctions.setParameter('operation', 'update', 0);
+        mockFunctions.setParameter('identifyBy', 'lookup', 0);
+        mockFunctions.setParameter('lookupColumn', 'Full Name (EN)', 0);
+        mockFunctions.setParameter('lookupValue', 'John Doe', 0);
+        mockFunctions.setParameter('processMode', 'first', 0);
+        mockFunctions.setParameter('valuesToSet', JSON.stringify({
+          'Department/部門': 'IT',
+        }), 0);
+        mockFunctions.setInputData([{ json: {} }]);
+
+        mockFunctions.setRequestResponse(
+          'http://localhost:8000/api/excel/update_advanced',
+          {
+            success: true,
+            message: 'Row updated successfully',
+            rows_affected: 1,
+          }
+        );
+
+        const executeFunctions = mockFunctions.getExecuteFunctions();
+        const result = await excelApi.execute.call(executeFunctions);
+
+        expect(result[0][0].json.success).toBe(true);
+        
+        const requestBody = mockFunctions.getLastRequestBody();
+        expect(requestBody.lookup_column).toBe('Full Name (EN)');
+      });
+
+      it('should work with Chinese column names', async () => {
+        mockFunctions.setParameter('fileName', 'chinese.xlsx');
+        mockFunctions.setParameter('sheetName', '員工資料');
+        mockFunctions.setRequestResponse(
+          'http://localhost:8000/api/excel/headers?file=chinese.xlsx&sheet=%E5%93%A1%E5%B7%A5%E8%B3%87%E6%96%99',
+          {
+            success: true,
+            headers: ['編號', '姓名', '聯絡電話', '電子郵件'],
+          }
+        );
+
+        const loadFunctions = mockFunctions.getLoadOptionsFunctions();
+        const columns = await excelApi.methods.loadOptions.getColumnNames.call(
+          loadFunctions
+        );
+
+        expect(columns).toHaveLength(4);
+        expect(columns.map(c => c.value)).toEqual(['編號', '姓名', '聯絡電話', '電子郵件']);
+
+        // Use Chinese column name
+        mockFunctions.setParameter('operation', 'update', 0);
+        mockFunctions.setParameter('identifyBy', 'lookup', 0);
+        mockFunctions.setParameter('lookupColumn', '電子郵件', 0);
+        mockFunctions.setParameter('lookupValue', 'test@example.com', 0);
+        mockFunctions.setParameter('processMode', 'first', 0);
+        mockFunctions.setParameter('valuesToSet', JSON.stringify({
+          '聯絡電話': '0912-345-678',
+        }), 0);
+        mockFunctions.setInputData([{ json: {} }]);
+
+        mockFunctions.setRequestResponse(
+          'http://localhost:8000/api/excel/update_advanced',
+          {
+            success: true,
+            message: 'Row updated successfully',
+            rows_affected: 1,
+          }
+        );
+
+        const executeFunctions = mockFunctions.getExecuteFunctions();
+        const result = await excelApi.execute.call(executeFunctions);
+
+        expect(result[0][0].json.success).toBe(true);
+        
+        const requestBody = mockFunctions.getLastRequestBody();
+        expect(requestBody.lookup_column).toBe('電子郵件');
+        expect(requestBody.lookup_value).toBe('test@example.com');
+      });
     });
   });
 });

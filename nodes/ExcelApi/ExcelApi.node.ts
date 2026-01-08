@@ -155,11 +155,15 @@ export class ExcelApi implements INodeType {
 				description: 'Row number to update/delete (1-based, row 1 is header)',
 				hint: '⚠️ Row 1 is protected (header row). Data rows start from row 2.',
 			},
-			// Lookup Column (for lookup method)
+			// ✨ NEW: Lookup Column - 改為下拉選單
 			{
 				displayName: 'Lookup Column',
 				name: 'lookupColumn',
-				type: 'string',
+				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'getColumnNames',
+					loadOptionsDependsOn: ['fileName', 'sheetName'],
+				},
 				displayOptions: { 
 					show: { 
 						operation: ['update', 'delete'],
@@ -168,9 +172,8 @@ export class ExcelApi implements INodeType {
 				},
 				required: true,
 				default: '',
-				placeholder: 'e.g., 員工編號, Email, ID',
-				description: 'Column name to search in (must match header exactly)',
-				hint: 'The first row is treated as headers',
+				description: 'Column name to search in (automatically loaded from Excel headers)',
+				hint: '💡 The list shows all column names from the first row of your Excel file',
 			},
 			// Lookup Value (for lookup method)
 			{
@@ -189,7 +192,7 @@ export class ExcelApi implements INodeType {
 				description: 'Value to search for in the lookup column',
 				hint: 'Can use expressions like {{ $json.id }}',
 			},
-			// NEW: Process Mode (for lookup method)
+			// Process Mode (for lookup method)
 			{
 				displayName: 'Process Mode',
 				name: 'processMode',
@@ -312,6 +315,42 @@ export class ExcelApi implements INodeType {
 					return [];
 				}
 			},
+
+			// ✨ NEW: 獲取欄位名稱（表頭）
+			async getColumnNames(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const fileName = this.getNodeParameter('fileName') as string;
+				const sheetName = this.getNodeParameter('sheetName') as string;
+				
+				if (!fileName || !sheetName) {
+					return [];
+				}
+
+				const credentials = await this.getCredentials('excelApiAuth');
+				const apiUrl = credentials.url as string;
+				const apiToken = credentials.token as string;
+
+				try {
+					const response = await this.helpers.request({
+						method: 'GET',
+						url: `${apiUrl}/api/excel/headers?file=${encodeURIComponent(fileName)}&sheet=${encodeURIComponent(sheetName)}`,
+						headers: {
+							'Authorization': `Bearer ${apiToken}`,
+						},
+						json: true,
+					});
+
+					if (response.success && response.headers) {
+						return response.headers.map((header: string) => ({
+							name: header,
+							value: header,
+						}));
+					}
+					return [];
+				} catch (error) {
+					// 如果獲取失敗，返回空列表（用戶可以手動輸入）
+					return [];
+				}
+			},
 		},
 	};
 
@@ -363,7 +402,6 @@ export class ExcelApi implements INodeType {
 					// Use different API endpoint based on append mode
 					if (appendMode === 'object') {
 						// Object Mode: Use append_object API
-						// This API automatically reads headers and maps values by column names
 						responseData = await this.helpers.request({
 							method: 'POST',
 							url: `${apiUrl}/api/excel/append_object`,
@@ -487,15 +525,17 @@ export class ExcelApi implements INodeType {
 						body: requestBody,
 						json: true,
 					});
-				// Check if any rows were affected
-				if (responseData.success && responseData.rows_affected === 0) {
-					throw new NodeOperationError(
-						this.getNode(),
-						identifyBy === 'lookup' 
-							? `No matching rows found. Lookup column: "${requestBody.lookup_column}", Lookup value: "${requestBody.lookup_value}"`
-							: `Row ${requestBody.row} not found or is protected (header row cannot be updated)`,
-					);
-				}
+
+					// Check if any rows were affected
+					if (responseData.success && responseData.updated_count === 0) {
+						throw new NodeOperationError(
+							this.getNode(),
+							identifyBy === 'lookup' 
+								? `No matching rows found. Lookup column: "${requestBody.lookup_column}", Lookup value: "${requestBody.lookup_value}"`
+								: `Row ${requestBody.row} not found or is protected (header row cannot be updated)`,
+						);
+					}
+
 				} else if (operation === 'delete') {
 					// Get identification method
 					const identifyBy = this.getNodeParameter('identifyBy', i) as string;
@@ -531,7 +571,7 @@ export class ExcelApi implements INodeType {
 					});
 
 					// Check if any rows were affected
-					if (responseData.success && responseData.rows_affected === 0) {
+					if (responseData.success && responseData.deleted_count === 0) {
 						throw new NodeOperationError(
 							this.getNode(),
 							identifyBy === 'lookup' 

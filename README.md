@@ -3,71 +3,73 @@
 [![npm version](https://badge.fury.io/js/n8n-nodes-excel-api.svg)](https://badge.fury.io/js/n8n-nodes-excel-api)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-n8n 社群節點，透過 API 存取 Excel 檔案，具備**並行安全保護**。完美適用於多使用者同時透過 n8n 工作流程存取相同 Excel 檔案的場景。
+An n8n community node for accessing Excel files via API with **concurrent safety protection**. Perfect for scenarios where multiple users simultaneously access the same Excel file through n8n workflows.
 
-## 🎯 為什麼需要這個節點？
+> 📖 **[中文文檔](README_zh-tw.md)** | **[English Documentation](README.md)**
 
-### 問題所在
-直接在 n8n 中使用 Excel 檔案時：
-- ❌ 多個工作流程同時存取同一檔案會導致檔案損毀
-- ❌ 並行寫入時會發生資料覆蓋與遺失
-- ❌ 缺乏檔案鎖定機制
-- ❌ 難以處理多人同時提交的 Webhook 表單
+## 🎯 Why This Node?
 
-### 解決方案
-本節點搭配 [Excel API Server](https://github.com/code4Copilot/excel-api-server) 提供：
-- ✅ **檔案鎖定** - 自動佇列管理並行請求
-- ✅ **資料完整性** - 無資料遺失或損毀
-- ✅ **多使用者支援** - 完美適用於多人提交的 HTML 表單
-- ✅ **類似 Google Sheets 的介面** - 在 n8n 中熟悉的操作方式
-- ✅ **批次操作** - 高效的大量更新
+### The Problem
+When working with Excel files directly in n8n:
+- ❌ Multiple workflows accessing the same file cause file corruption
+- ❌ Concurrent writes lead to data overwrite and loss
+- ❌ No file locking mechanism
+- ❌ Difficult to handle simultaneous webhook form submissions
 
-## 📦 安裝方式
+### The Solution
+This node works with [Excel API Server](https://github.com/code4Copilot/excel-api-server) to provide:
+- ✅ **File Locking** - Automatically queue concurrent requests
+- ✅ **Data Integrity** - No data loss or corruption
+- ✅ **Multi-User Support** - Perfect for multi-user HTML form submissions
+- ✅ **Google Sheets-like Interface** - Familiar operations in n8n
+- ✅ **Batch Operations** - Efficient bulk updates
 
-### 方法 1：npm（推薦）
+## 📦 Installation
+
+### Method 1: npm (Recommended)
 
 ```bash
 npm install n8n-nodes-excel-api
 ```
 
-### 方法 2：手動安裝
+### Method 2: Manual Installation
 
 ```bash
-# 1. 複製儲存庫
+# 1. Clone repository
 git clone https://github.com/code4Copilot/n8n-nodes-excel-api.git
 cd n8n-nodes-excel-api
 
-# 2. 安裝相依套件
+# 2. Install dependencies
 npm install
 
-# 3. 建置
+# 3. Build
 npm run build
 
-# 4. 連結到 n8n
+# 4. Link to n8n
 npm link
 cd ~/.n8n
 npm link n8n-nodes-excel-api
 
-# 5. 重新啟動 n8n
+# 5. Restart n8n
 n8n start
 ```
 
-### 方法 3：社群套件（發布後）
+### Method 3: Community Package (After Publication)
 
-在 n8n 中：
-1. 前往 **設定** → **社群節點**
-2. 點擊 **安裝**
-3. 輸入：`n8n-nodes-excel-api`
-4. 點擊 **安裝**
+In n8n:
+1. Go to **Settings** → **Community Nodes**
+2. Click **Install**
+3. Enter: `n8n-nodes-excel-api`
+4. Click **Install**
 
-## 🚀 前置需求
+## 🚀 Prerequisites
 
-**必須先執行 Excel API Server！**
+**You must run Excel API Server first!**
 
-安裝並啟動 [Excel API Server](https://github.com/code4Copilot/excel-api-server)：
+Install and start [Excel API Server](https://github.com/code4Copilot/excel-api-server):
 
 ```bash
-# 使用 Docker 快速啟動
+# Quick start with Docker
 docker run -d \
   -p 8000:8000 \
   -v $(pwd)/data:/app/data \
@@ -75,153 +77,153 @@ docker run -d \
   yourusername/excel-api-server
 ```
 
-詳細資訊請參閱 [Excel API Server 文件](https://github.com/code4Copilot/excel-api-server)。
+See [Excel API Server Documentation](https://github.com/code4Copilot/excel-api-server) for details.
 
-## 🔧 設定
+## 🔧 Configuration
 
-### 1. 設定憑證
+### 1. Set Up Credentials
 
-在 n8n 中：
-1. 前往 **憑證** → **新增**
-2. 搜尋「Excel API」
-3. 填寫：
-   - **API URL**：`http://localhost:8000`（您的 API 伺服器位址）
-   - **API Token**：`your-secret-token`（來自 Excel API Server）
-4. 點擊 **儲存**
+In n8n:
+1. Go to **Credentials** → **New**
+2. Search for "Excel API"
+3. Fill in:
+   - **API URL**: `http://localhost:8000` (Your API server address)
+   - **API Token**: `your-secret-token` (From Excel API Server)
+4. Click **Save**
 
-### 2. 將節點加入工作流程
+### 2. Add Node to Workflow
 
-1. 建立或開啟工作流程
-2. 點擊 **新增節點**
-3. 搜尋「Excel API」
-4. 選擇節點
-5. 選擇您的憑證
-6. 設定操作
+1. Create or open a workflow
+2. Click **Add Node**
+3. Search for "Excel API"
+4. Select the node
+5. Choose your credential
+6. Configure operation
 
-## 📚 操作說明
+## 📚 Operations
 
-### 1. Append（附加）
-在工作表末端新增一列資料。
+### 1. Append
+Add a new row to the end of the sheet.
 
-**兩種模式：**
+**Two Modes:**
 
-#### Object Mode（物件模式）- 推薦
-使用欄位名稱對應，更安全且易於維護。
+#### Object Mode - Recommended
+Map values by column names, safer and easier to maintain.
 
-**範例：**
+**Example:**
 ```json
 {
-  "員工編號": "{{ $json.body.employeeId }}",
-  "姓名": "{{ $json.body.name }}",
-  "部門": "{{ $json.body.department }}",
-  "職位": "{{ $json.body.position }}",
-  "薪資": "{{ $json.body.salary }}"
+  "Employee ID": "{{ $json.body.employeeId }}",
+  "Name": "{{ $json.body.name }}",
+  "Department": "{{ $json.body.department }}",
+  "Position": "{{ $json.body.position }}",
+  "Salary": "{{ $json.body.salary }}"
 }
 ```
 
-**特色：**
-- ✅ 自動讀取 Excel 表頭（第一列）
-- ✅ 按照欄位名稱智能對應
-- ✅ 忽略未知欄位，並在回應中提示
-- ✅ 欄位順序可任意調整
-- ✅ 缺少的欄位會自動填入空值
+**Features:**
+- ✅ Automatically read Excel headers (first row)
+- ✅ Intelligently map by column names
+- ✅ Ignore unknown columns with warnings in response
+- ✅ Column order can be arbitrary
+- ✅ Missing columns automatically filled with empty values
 
-#### Array Mode（陣列模式）
-依照精確的欄位順序指定值。
+#### Array Mode
+Specify values in exact column order.
 
-**範例：**
+**Example:**
 ```json
-["E100", "江小魚", "人資部", "經理", "70000"]
+["E100", "John Doe", "HR", "Manager", "70000"]
 ```
 
-**注意：** 值的順序必須與 Excel 欄位順序完全對應。
+**Note:** Value order must exactly match Excel column order.
 
-### 2. Read（讀取）
-從 Excel 檔案讀取資料。
+### 2. Read
+Read data from Excel file.
 
-**參數：**
-- `file`：檔案名稱（例如：`employees.xlsx`）
-- `sheet`：工作表名稱（預設：`Sheet1`）
-- `range`：儲存格範圍（例如：`A1:D10`，留空讀取全部資料）
+**Parameters:**
+- `file`: File name (e.g., `employees.xlsx`)
+- `sheet`: Sheet name (default: `Sheet1`)
+- `range`: Cell range (e.g., `A1:D10`, leave empty to read all)
 
-**輸出：**
-- 若偵測到表頭，自動將第一列轉換為欄位名稱
-- 回傳物件陣列，以表頭作為鍵值
-- 若無表頭則回傳原始資料陣列
+**Output:**
+- Auto-convert first row to column names if headers detected
+- Return array of objects with headers as keys
+- Return raw data array if no headers
 
-### 3. Update（更新）
-更新現有列的資料。
+### 3. Update
+Update existing row data.
 
-**識別方式：**
+**Identify Methods:**
 
-#### 依列號（Row Number）
-直接指定要更新的列號（從 2 開始，第 1 列為表頭）。
+#### By Row Number
+Directly specify row number to update (starts from 2, row 1 is header).
 
-**範例：**
+**Example:**
 ```json
 {
   "operation": "update",
   "identifyBy": "rowNumber",
   "rowNumber": 5,
   "valuesToSet": {
-    "狀態": "已完成",
-    "更新日期": "2025-12-21"
+    "Status": "Completed",
+    "Update Date": "2025-12-21"
   }
 }
 ```
 
-#### 依查找（Lookup）
-透過查找特定欄位的值來找到要更新的列。
+#### By Lookup
+Find rows to update by looking up specific column values.
 
-**處理模式 (Process Mode)：**
+**Process Modes:**
 
-##### 處理所有符合記錄 (All Matching Records) - 預設
-更新所有符合條件的列，適用於批次更新場景。
+##### All Matching Records - Default
+Update all matching rows, suitable for batch update scenarios.
 
-**範例：更新所有技術部員工的狀態**
+**Example: Update all IT department employees**
 ```json
 {
   "operation": "update",
   "identifyBy": "lookup",
-  "lookupColumn": "部門",
-  "lookupValue": "技術部",
+  "lookupColumn": "Department",
+  "lookupValue": "IT",
   "processMode": "all",
   "valuesToSet": {
-    "狀態": "已審核",
-    "審核日期": "2026-01-06"
+    "Status": "Reviewed",
+    "Review Date": "2026-01-06"
   }
 }
 ```
 
-##### 僅處理第一筆 (First Match Only)
-只更新第一筆符合的記錄，適用於唯一識別碼查找。
+##### First Match Only
+Update only the first matching record, suitable for unique identifier lookups.
 
-**範例：更新特定員工的資料**
+**Example: Update specific employee data**
 ```json
 {
   "operation": "update",
   "identifyBy": "lookup",
-  "lookupColumn": "員工編號",
+  "lookupColumn": "Employee ID",
   "lookupValue": "E100",
   "processMode": "first",
   "valuesToSet": {
-    "薪資": "80000",
-    "職位": "資深經理"
+    "Salary": "80000",
+    "Position": "Senior Manager"
   }
 }
 ```
 
-**💡 使用建議：**
-- 使用唯一識別碼（如員工編號、Email）查找時，建議使用 `processMode: "first"` 以提升效能
-- 需要批次更新多筆記錄時，使用 `processMode: "all"`
-- 預設值為 `"all"` 以確保不會遺漏任何符合的記錄
+**💡 Usage Tips:**
+- When looking up by unique identifiers (Employee ID, Email), use `processMode: "first"` for better performance
+- Use `processMode: "all"` when batch updating multiple records
+- Default is `"all"` to ensure no matching records are missed
 
-### 4. Delete（刪除）
-從工作表中刪除一列。
+### 4. Delete
+Delete a row from the sheet.
 
-**識別方式：**
+**Identify Methods:**
 
-#### 依列號
+#### By Row Number
 ```json
 {
   "operation": "delete",
@@ -230,59 +232,59 @@ docker run -d \
 }
 ```
 
-#### 依查找
-透過查找特定欄位的值來找到要刪除的列。
+#### By Lookup
+Find rows to delete by looking up specific column values.
 
-**處理模式 (Process Mode)：**
+**Process Modes:**
 
-##### 處理所有符合記錄 (All Matching Records) - 預設
-刪除所有符合條件的列。
+##### All Matching Records - Default
+Delete all matching rows.
 
-**範例：刪除所有已離職員工**
+**Example: Delete all terminated employees**
 ```json
 {
   "operation": "delete",
   "identifyBy": "lookup",
-  "lookupColumn": "狀態",
-  "lookupValue": "已離職",
+  "lookupColumn": "Status",
+  "lookupValue": "Terminated",
   "processMode": "all"
 }
 ```
 
-##### 僅處理第一筆 (First Match Only)
-只刪除第一筆符合的記錄。
+##### First Match Only
+Delete only the first matching record.
 
-**範例：刪除特定員工**
+**Example: Delete specific employee**
 ```json
 {
   "operation": "delete",
   "identifyBy": "lookup",
-  "lookupColumn": "員工編號",
+  "lookupColumn": "Employee ID",
   "lookupValue": "E100",
   "processMode": "first"
 }
 ```
 
-**⚠️ 注意事項：**
-- 刪除操作無法復原，請謹慎使用
-- 使用唯一識別碼查找時，建議使用 `processMode: "first"`
-- 批次刪除時務必確認查找條件正確，避免誤刪資料
+**⚠️ Important:**
+- Delete operations cannot be undone, use with caution
+- When looking up by unique identifiers, use `processMode: "first"`
+- Verify lookup conditions carefully when batch deleting to avoid accidental data loss
 
-### 5. Batch（批次）
-一次執行多個操作（更有效率）。
+### 5. Batch
+Execute multiple operations at once (more efficient).
 
-**範例：**
+**Example:**
 ```json
 {
   "operations": [
     {
       "type": "append",
-      "values": ["E010", "Alice", "行銷部", "專員", "65000"]
+      "values": ["E010", "Alice", "Marketing", "Specialist", "65000"]
     },
     {
       "type": "update",
       "row": 5,
-      "values": ["E005", "Updated Name", "IT部", "經理", "90000"]
+      "values": ["E005", "Updated Name", "IT", "Manager", "90000"]
     },
     {
       "type": "delete",
@@ -292,45 +294,43 @@ docker run -d \
 }
 ```
 
-## 🎨 使用範例
+## 🎨 Usage Examples
 
-## 🎨 使用範例
+### Example 1: Webhook Form to Excel
 
-### 範例 1：Webhook 表單寫入 Excel
-
-完美適用於多人同時提交表單的場景！
+Perfect for scenarios with multiple simultaneous form submissions!
 
 ```
 ┌──────────────────┐
-│ Webhook          │  接收表單提交
+│ Webhook          │  Receive form submission
 │ POST /submit     │
 └────────┬─────────┘
          │
          ▼
 ┌──────────────────┐
-│ Excel API        │  操作：Append（物件模式）
-│                  │  檔案：registrations.xlsx
-│                  │  值：{
-│                  │    "姓名": "{{ $json.body.name }}",
+│ Excel API        │  Operation: Append (Object Mode)
+│                  │  File: registrations.xlsx
+│                  │  Values: {
+│                  │    "Name": "{{ $json.body.name }}",
 │                  │    "Email": "{{ $json.body.email }}",
-│                  │    "電話": "{{ $json.body.phone }}",
-│                  │    "提交時間": "{{ $now }}"
+│                  │    "Phone": "{{ $json.body.phone }}",
+│                  │    "Submit Time": "{{ $now }}"
 │                  │  }
 └────────┬─────────┘
          │
          ▼
 ┌──────────────────┐
-│ Respond Webhook  │  回傳成功訊息
+│ Respond Webhook  │  Return success message
 └──────────────────┘
 ```
 
-**HTML 表單：**
+**HTML Form:**
 ```html
 <form id="registrationForm">
-  <input type="text" name="name" placeholder="姓名" required>
+  <input type="text" name="name" placeholder="Name" required>
   <input type="email" name="email" placeholder="Email" required>
-  <input type="tel" name="phone" placeholder="電話" required>
-  <button type="submit">提交</button>
+  <input type="tel" name="phone" placeholder="Phone" required>
+  <button type="submit">Submit</button>
 </form>
 
 <script>
@@ -342,134 +342,134 @@ document.getElementById('registrationForm').addEventListener('submit', async (e)
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify(Object.fromEntries(formData))
   });
-  alert('提交成功！');
+  alert('Submitted successfully!');
 });
 </script>
 ```
 
-### 範例 2：每日報表產生
+### Example 2: Daily Report Generation
 
 ```
 ┌──────────────────┐
-│ Schedule         │  每天早上 9:00
+│ Schedule         │  Every day at 9:00 AM
 │ 0 9 * * *        │
 └────────┬─────────┘
          │
          ▼
 ┌──────────────────┐
-│ Excel API        │  操作：Read
-│ (讀取)           │  檔案：sales.xlsx
+│ Excel API        │  Operation: Read
+│ (Read)           │  File: sales.xlsx
 └────────┬─────────┘
          │
          ▼
 ┌──────────────────┐
-│ Filter           │  篩選今日記錄
+│ Filter           │  Filter today's records
 └────────┬─────────┘
          │
          ▼
 ┌──────────────────┐
-│ Send Email       │  發送每日報表
+│ Send Email       │  Send daily report
 └──────────────────┘
 ```
 
-### 範例 3：批次更新
+### Example 3: Batch Updates
 
 ```
 ┌──────────────────┐
-│ Code             │  準備操作陣列
+│ Code             │  Prepare operations array
 │                  │  operations = [...]
 └────────┬─────────┘
          │
          ▼
 ┌──────────────────┐
-│ Excel API        │  操作：Batch
-│ (批次)           │  檔案：data.xlsx
-│                  │  操作：{{ $json.operations }}
+│ Excel API        │  Operation: Batch
+│ (Batch)          │  File: data.xlsx
+│                  │  Operations: {{ $json.operations }}
 └──────────────────┘
 ```
 
-### 範例 4：透過員工編號更新薪資
+### Example 4: Update Salary by Employee ID
 
 ```
 ┌──────────────────┐
-│ Webhook          │  接收更新請求
+│ Webhook          │  Receive update request
 │ POST /update     │  { "employeeId": "E100", "salary": 85000 }
 └────────┬─────────┘
          │
          ▼
 ┌──────────────────┐
-│ Excel API        │  操作：Update
-│                  │  識別方式：Lookup
-│                  │  查找欄位：員工編號
-│                  │  查找值：{{ $json.body.employeeId }}
-│                  │  處理模式：First Match Only (僅處理第一筆)
-│                  │  設定值：{ "薪資": "{{ $json.body.salary }}" }
+│ Excel API        │  Operation: Update
+│                  │  Identify By: Lookup
+│                  │  Lookup Column: Employee ID
+│                  │  Lookup Value: {{ $json.body.employeeId }}
+│                  │  Process Mode: First Match Only
+│                  │  Values To Set: { "Salary": "{{ $json.body.salary }}" }
 └────────┬─────────┘
          │
          ▼
 ┌──────────────────┐
-│ Respond Webhook  │  回傳更新結果
+│ Respond Webhook  │  Return update result
 └──────────────────┘
 ```
 
-### 範例 5：批次更新部門狀態
+### Example 5: Batch Department Status Update
 
-**使用情境：** 一次審核整個部門的所有員工
+**Use Case:** Review all employees in a department at once
 
 ```
 ┌──────────────────┐
-│ Webhook          │  接收批次審核請求
-│ POST /approve    │  { "department": "技術部", "status": "已審核" }
+│ Webhook          │  Receive batch review request
+│ POST /approve    │  { "department": "IT", "status": "Reviewed" }
 └────────┬─────────┘
          │
          ▼
 ┌──────────────────┐
-│ Excel API        │  操作：Update
-│                  │  識別方式：Lookup
-│                  │  查找欄位：部門
-│                  │  查找值：{{ $json.body.department }}
-│                  │  處理模式：All Matching Records (處理所有符合)
-│                  │  設定值：{
-│                  │    "狀態": "{{ $json.body.status }}",
-│                  │    "審核日期": "{{ $now.format('YYYY-MM-DD') }}",
-│                  │    "審核人": "{{ $json.body.reviewer }}"
+│ Excel API        │  Operation: Update
+│                  │  Identify By: Lookup
+│                  │  Lookup Column: Department
+│                  │  Lookup Value: {{ $json.body.department }}
+│                  │  Process Mode: All Matching Records
+│                  │  Values To Set: {
+│                  │    "Status": "{{ $json.body.status }}",
+│                  │    "Review Date": "{{ $now.format('YYYY-MM-DD') }}",
+│                  │    "Reviewer": "{{ $json.body.reviewer }}"
 │                  │  }
 └────────┬─────────┘
          │
          ▼
 ┌──────────────────┐
-│ Respond Webhook  │  回傳：已更新 N 筆記錄
+│ Respond Webhook  │  Return: Updated N records
 └──────────────────┘
 ```
 
-### 範例 6：清理過期資料
+### Example 6: Clean Up Expired Data
 
-**使用情境：** 定期刪除已離職超過一年的員工記錄
+**Use Case:** Periodically delete employee records terminated over a year ago
 
 ```
 ┌──────────────────┐
-│ Schedule         │  每月 1 號執行
+│ Schedule         │  Execute on 1st of month
 │ 0 0 1 * *        │
 └────────┬─────────┘
          │
          ▼
 ┌──────────────────┐
-│ Excel API        │  操作：Delete
-│                  │  識別方式：Lookup
-│                  │  查找欄位：狀態
-│                  │  查找值：已離職
-│                  │  處理模式：All Matching Records (刪除所有符合)
+│ Excel API        │  Operation: Delete
+│                  │  Identify By: Lookup
+│                  │  Lookup Column: Status
+│                  │  Lookup Value: Terminated
+│                  │  Process Mode: All Matching Records
 └────────┬─────────┘
          │
          ▼
 ┌──────────────────┐
-│ Send Email       │  通知管理員：已清理 N 筆記錄
+│ Send Email       │  Notify admin: Cleaned N records
 └──────────────────┘
 ```
 
-## 🧪 並行測試
+## 🧪 Concurrent Testing
 
-測試 10 個同時提交：
+Test 10 simultaneous submissions:
 
 ```javascript
 // concurrent_test.js
@@ -480,156 +480,163 @@ for (let i = 0; i < 10; i++) {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
-        員工編號: `E${String(i).padStart(3, '0')}`,
-        姓名: `測試使用者 ${i}`,
-        時間戳記: new Date().toISOString()
+        EmployeeID: `E${String(i).padStart(3, '0')}`,
+        Name: `Test User ${i}`,
+        Timestamp: new Date().toISOString()
       })
     })
   );
 }
 
 await Promise.all(promises);
-console.log('所有請求完成！');
+console.log('All requests completed!');
 ```
 
-**結果：** 所有 10 筆記錄都會安全地寫入 Excel，不會有資料遺失或損毀！
+**Result:** All 10 records will be safely written to Excel without data loss or corruption!
 
-## ⚠️ 常見問題
+## ⚠️ Troubleshooting
 
-### 問題 1：節點未顯示在 n8n 中
+### Issue 1: Node Not Showing in n8n
 
-**解決方法：**
+**Solution:**
 ```bash
-# 重新啟動 n8n
+# Restart n8n
 pkill -f n8n
 n8n start
 
-# 或使用 pm2
+# Or with pm2
 pm2 restart n8n
 ```
 
-### 問題 2：API 連線失敗
+### Issue 2: API Connection Failed
 
-**解決方法：**
-- 檢查 Excel API Server 是否正在執行：`curl http://localhost:8000/`
-- 驗證憑證中的 API URL 是否正確
-- 檢查 API Token 是否正確
-- 檢查防火牆設定
+**Solution:**
+- Check if Excel API Server is running: `curl http://localhost:8000/`
+- Verify API URL in credentials is correct
+- Check API Token is correct
+- Check firewall settings
 
-### 問題 3：「找不到參數」錯誤
+### Issue 3: "Parameter Not Found" Error
 
-**原因：** 參數名稱設定錯誤
+**Cause:** Incorrect parameter name configuration
 
-**解決方法：**
-- 確認選擇了正確的 Append Mode（Object 或 Array）
-- Object Mode：使用 `appendValuesObject` 參數
-- Array Mode：使用 `appendValuesArray` 參數
-- 檢查 JSON 格式是否正確
+**Solution:**
+- Confirm correct Append Mode is selected (Object or Array)
+- Object Mode: Use `appendValuesObject` parameter
+- Array Mode: Use `appendValuesArray` parameter
+- Check JSON format is correct
 
-### 問題 4：「檔案鎖定」錯誤
+### Issue 4: "File Lock" Error
 
-**原因：** 並行請求過多或 API 伺服器問題
+**Cause:** Too many concurrent requests or API server issues
 
-**解決方法：**
-- 稍等片刻後重試
-- 檢查 API 伺服器狀態
-- 必要時重新啟動 Excel API Server
+**Solution:**
+- Wait a moment and retry
+- Check API server status
+- Restart Excel API Server if necessary
 
-## 🔐 安全性
+## 🔐 Security
 
-### 最佳實踐
+### Best Practices
 
-1. **使用強式 API Token**
+1. **Use Strong API Token**
    ```bash
-   # 產生安全的 token
+   # Generate secure token
    openssl rand -hex 32
    ```
 
-2. **在正式環境使用 HTTPS**
-   - 設定反向代理（Nginx）
-   - 使用 SSL 憑證
+2. **Use HTTPS in Production**
+   - Set up reverse proxy (Nginx)
+   - Use SSL certificate
 
-3. **限制存取**
-   - 僅允許信任的網路存取 API URL
-   - 遠端存取時使用 VPN
+3. **Restrict Access**
+   - Allow only trusted networks to access API URL
+   - Use VPN for remote access
 
-4. **定期備份**
-   - 設定 Excel 檔案自動備份
-   - 將備份儲存在安全位置
+4. **Regular Backups**
+   - Set up automatic backups of Excel files
+   - Store backups in secure location
 
-## 📊 效能優化建議
+## 📊 Performance Optimization Tips
 
-### 1. 使用批次操作
+### 1. Use Batch Operations
 ```javascript
-// ❌ 不好：多次單一操作
+// ❌ Bad: Multiple single operations
 for (item of items) {
   await appendRow(item);
 }
 
-// ✅ 好：一次批次操作
+// ✅ Good: One batch operation
 await batchOperations(items.map(item => ({
   type: "append",
   values: item.values
 })));
 ```
 
-### 2. 讀取時指定範圍
+### 2. Specify Range When Reading
 ```javascript
-// ❌ 不好：讀取整個檔案
+// ❌ Bad: Read entire file
 range: ""
 
-// ✅ 好：只讀取需要的範圍
+// ✅ Good: Only read needed range
 range: "A1:D100"
 ```
 
-### 3. 使用高效的工作流程
-- 在一個工作流程中組合相關操作
-- 減少 API 呼叫次數
-- 適當使用快取
+### 3. Use Efficient Workflows
+- Combine related operations in one workflow
+- Reduce number of API calls
+- Use caching appropriately
 
-## 🆕 最新功能
+## 🆕 Latest Features
 
-### Object Mode（物件模式）
-- ✅ 使用 `/api/excel/append_object` API
-- ✅ 自動讀取 Excel 表頭（第一列）
-- ✅ 按照欄位名稱智能對應
-- ✅ 忽略未知欄位，並在回應中提示
-- ✅ 不需要記住欄位順序
+### Object Mode
+- ✅ Uses `/api/excel/append_object` API
+- ✅ Automatically reads Excel headers (first row)
+- ✅ Intelligently maps by column names
+- ✅ Ignores unknown columns with warnings in response
+- ✅ No need to remember column order
 
-### 進階更新與刪除
-- ✅ 支援依列號直接操作
-- ✅ 支援依查找欄位值來操作
-- ✅ 可更新特定欄位而不影響其他欄位
+### Advanced Update and Delete
+- ✅ Support operations by row number
+- ✅ Support operations by column value lookup
+- ✅ Can update specific columns without affecting others
+- ✅ Batch processing support with process modes
 
-## 🤝 貢獻
+### Lookup Column Selection
+- ✅ Dynamic dropdown selection of Excel headers
+- ✅ Support for Chinese and special character column names
+- ✅ Automatic URL encoding for special characters
+- ✅ Enhanced user experience with visual column selection
 
-歡迎貢獻！
+## 🤝 Contributing
 
-1. Fork 此儲存庫
-2. 建立您的功能分支：`git checkout -b feature/AmazingFeature`
-3. 提交您的變更：`git commit -m 'Add some AmazingFeature'`
-4. 推送到分支：`git push origin feature/AmazingFeature`
-5. 開啟 Pull Request
+Contributions are welcome!
 
-## 📄 授權
+1. Fork this repository
+2. Create your feature branch: `git checkout -b feature/AmazingFeature`
+3. Commit your changes: `git commit -m 'Add some AmazingFeature'`
+4. Push to the branch: `git push origin feature/AmazingFeature`
+5. Open a Pull Request
 
-MIT 授權 - 詳見 [LICENSE](LICENSE) 檔案
+## 📄 License
 
-## 🔗 相關專案
+MIT License - see [LICENSE](LICENSE) file
 
-- [Excel API Server](https://github.com/code4Copilot/excel-api-server) - 後端 API 伺服器（必要）
-- [n8n](https://github.com/n8n-io/n8n) - 工作流程自動化工具
+## 🔗 Related Projects
 
-## 📧 支援
+- [Excel API Server](https://github.com/code4Copilot/excel-api-server) - Backend API server (Required)
+- [n8n](https://github.com/n8n-io/n8n) - Workflow automation tool
 
-- GitHub Issues：[回報問題](https://github.com/code4Copilot/n8n-nodes-excel-api/issues)
-- Email：your.email@example.com
-- n8n 社群：[n8n 論壇](https://community.n8n.io)
+## 📧 Support
 
-## ⭐ Star 歷史
+- GitHub Issues: [Report Issues](https://github.com/code4Copilot/n8n-nodes-excel-api/issues)
+- Email: hueyan.chen@gmail.com
+- n8n Community: [n8n Forum](https://community.n8n.io)
 
-如果這個專案對您有幫助，請給它一個 ⭐！
+## ⭐ Star History
+
+If this project helps you, please give it a ⭐!
 
 ---
 
-**用 ❤️ 為 n8n 社群打造**
+**Built with ❤️ for the n8n community**
