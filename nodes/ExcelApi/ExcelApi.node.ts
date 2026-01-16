@@ -8,6 +8,85 @@ import {
 	NodeOperationError,
 } from 'n8n-workflow';
 
+/**
+ * 自動轉換欄位值的型態
+ * 支援：數字、布林值、日期、null
+ */
+function convertValueType(value: any): any {
+	// 如果已經是 null、undefined，直接返回
+	if (value === null || value === undefined) {
+		return null;
+	}
+
+	// 如果不是字串，保持原樣
+	if (typeof value !== 'string') {
+		return value;
+	}
+
+	// 處理空字串
+	if (value.trim() === '') {
+		return null;
+	}
+
+	// 處理 "null" 字串
+	if (value.toLowerCase() === 'null') {
+		return null;
+	}
+
+	// 處理布林值
+	if (value.toLowerCase() === 'true') {
+		return true;
+	}
+	if (value.toLowerCase() === 'false') {
+		return false;
+	}
+
+	// 處理數字（整數和浮點數）
+	// 使用正則表達式確保是有效的數字格式
+	if (/^-?\d+(\.\d+)?$/.test(value.trim())) {
+		const num = Number(value);
+		if (!isNaN(num)) {
+			return num;
+		}
+	}
+
+	// 處理 ISO 日期格式
+	// 格式如：2024-01-15 或 2024-01-15T10:30:00 或 2024-01-15T10:30:00.000Z
+	if (/^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d{3}Z?)?)?$/.test(value.trim())) {
+		const date = new Date(value);
+		if (!isNaN(date.getTime())) {
+			// 返回 ISO 字串格式，Excel API Server 會處理
+			return date.toISOString();
+		}
+	}
+
+	// 其他情況保持原字串
+	return value;
+}
+
+/**
+ * 遞迴轉換物件或陣列中的所有值
+ */
+function convertObjectValues(obj: any): any {
+	if (obj === null || obj === undefined) {
+		return obj;
+	}
+
+	if (Array.isArray(obj)) {
+		return obj.map(item => convertValueType(item));
+	}
+
+	if (typeof obj === 'object') {
+		const converted: any = {};
+		for (const [key, value] of Object.entries(obj)) {
+			converted[key] = convertValueType(value);
+		}
+		return converted;
+	}
+
+	return convertValueType(obj);
+}
+
 export class ExcelApi implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Excel API',
@@ -399,42 +478,45 @@ export class ExcelApi implements INodeType {
 						appendValues = appendValuesRaw;
 					}
 
-					// Use different API endpoint based on append mode
-					if (appendMode === 'object') {
-						// Object Mode: Use append_object API
-						responseData = await this.helpers.request({
-							method: 'POST',
-							url: `${apiUrl}/api/excel/append_object`,
-							headers: {
-								'Authorization': `Bearer ${apiToken}`,
-								'Content-Type': 'application/json',
-							},
-							body: {
-								file: fileName,
-								sheet: sheetName,
-								values: appendValues,
-							},
-							json: true,
-						});
-					} else {
-						// Array Mode: Use standard append API
-						responseData = await this.helpers.request({
-							method: 'POST',
-							url: `${apiUrl}/api/excel/append`,
-							headers: {
-								'Authorization': `Bearer ${apiToken}`,
-								'Content-Type': 'application/json',
-							},
-							body: {
-								file: fileName,
-								sheet: sheetName,
-								values: appendValues,
-							},
-							json: true,
-						});
-					}
+				// 自動轉換值的型態
+				const convertedValues = convertObjectValues(appendValues);
 
-				} else if (operation === 'read') {
+				// Use different API endpoint based on append mode
+				if (appendMode === 'object') {
+					// Object Mode: Use append_object API
+					responseData = await this.helpers.request({
+						method: 'POST',
+						url: `${apiUrl}/api/excel/append_object`,
+						headers: {
+							'Authorization': `Bearer ${apiToken}`,
+							'Content-Type': 'application/json',
+						},
+						body: {
+							file: fileName,
+							sheet: sheetName,
+							values: convertedValues,
+						},
+						json: true,
+					});
+				} else {
+					// Array Mode: Use standard append API
+					responseData = await this.helpers.request({
+						method: 'POST',
+						url: `${apiUrl}/api/excel/append`,
+						headers: {
+							'Authorization': `Bearer ${apiToken}`,
+							'Content-Type': 'application/json',
+						},
+						body: {
+							file: fileName,
+							sheet: sheetName,
+							values: convertedValues,
+					},
+					json: true,
+				});
+			}
+
+		} else if (operation === 'read') {
 					const range = this.getNodeParameter('range', i) as string;
 
 					responseData = await this.helpers.request({
@@ -495,15 +577,18 @@ export class ExcelApi implements INodeType {
 						valuesToSet = valuesToSetRaw;
 					}
 
-					// Build request body
-					const requestBody: any = {
-						file: fileName,
-						sheet: sheetName,
-						values_to_set: valuesToSet,
-					};
+				// 自動轉換值的型態
+				const convertedValuesToSet = convertObjectValues(valuesToSet);
 
-					if (identifyBy === 'rowNumber') {
-						const rowNumber = this.getNodeParameter('rowNumber', i) as number;
+				// Build request body
+				const requestBody: any = {
+					file: fileName,
+					sheet: sheetName,
+					values_to_set: convertedValuesToSet,
+				};
+
+				if (identifyBy === 'rowNumber') {
+					const rowNumber = this.getNodeParameter('rowNumber', i) as number;
 						requestBody.row = rowNumber;
 					} else if (identifyBy === 'lookup') {
 						const lookupColumn = this.getNodeParameter('lookupColumn', i) as string;

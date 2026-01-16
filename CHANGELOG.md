@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > 📖 **[中文版本](CHANGELOG_zh-tw.md)** | **[English Version](CHANGELOG.md)**
 
+## [1.0.3] - 2026-01-16
+
+### Added
+- **Automatic Type Conversion**: Intelligently detect and convert field value data types
+  - String to Number: `"123"` → `123`, `"45.67"` → `45.67`
+  - String to Boolean: `"true"` → `true`, `"false"` → `false`
+  - String to Null: `"null"` or empty string → `null`
+  - String to Date: Automatic conversion of ISO format date strings
+- Support for all operations: Append (Object and Array modes), Update
+- Preserve values that are already correctly typed
+- Complete type conversion test coverage (16 test cases)
+
+### Improved
+- Enhanced data processing: Automatically recognize numbers, booleans, dates, and null values
+- Simplified workflows: No need to manually convert types
+- Better data quality: Ensure Excel cells use the correct data types
+
 ## [1.0.2] - 2026-01-08
 
 ### Added

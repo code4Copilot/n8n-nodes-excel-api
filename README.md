@@ -589,6 +589,27 @@ range: "A1:D100"
 
 ## 🆕 Latest Features
 
+### 🎉 Automatic Type Conversion (v1.0.3)
+- ✅ **Smart Type Detection**: Automatically convert strings to appropriate data types
+- ✅ **Number Conversion**: `"123"` → `123`, `"45.67"` → `45.67`
+- ✅ **Boolean Conversion**: `"true"` → `true`, `"false"` → `false`
+- ✅ **Null Conversion**: `"null"` or empty string → `null`
+- ✅ **Date Conversion**: ISO format date strings auto-convert (`"2024-01-15"`)
+- ✅ **Preserve Typed Values**: Numbers, booleans, etc. remain unchanged
+- ✅ **All Operations**: Supported in both Append and Update operations
+
+**Example:**
+```json
+{
+  "EmployeeID": "E001",      // Remains string
+  "Age": "30",               // Auto-converts to number 30
+  "Salary": "50000.50",     // Auto-converts to 50000.50
+  "IsActive": "true",        // Auto-converts to boolean true
+  "TerminationDate": "null", // Auto-converts to null
+  "HireDate": "2020-01-15"   // Auto-converts to date format
+}
+```
+
 ### Object Mode
 - ✅ Uses `/api/excel/append_object` API
 - ✅ Automatically reads Excel headers (first row)
