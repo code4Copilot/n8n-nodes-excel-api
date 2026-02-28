@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > 📖 **[中文版本](CHANGELOG_zh-tw.md)** | **[English Version](CHANGELOG.md)**
 
+## [1.0.4] - 2026-02-28
+
+### Fixed
+- **Date-only strings no longer gain time component**: `"2024-01-15"` now stays as `"2024-01-15"` instead of being converted to `"2024-01-15T00:00:00.000Z"`
+- **Read operation empty sheet**: Returns consistent `{ success: true, data: [] }` when the sheet has no data rows, instead of the raw API response object
+- **JSON hint/default examples**: Changed from embedded `{{ $json.x }}` string interpolation to `JSON.stringify()` pattern to avoid formatting errors when values contain special characters
+
+### Changed
+- **`fileName`, `sheetName`, `lookupColumn` migrated to `resourceLocator`**: Fixes dropdown list not refreshing when switching files in n8n UI; lists now always fetch fresh data every time they are opened
+- **Removed `rowNumber` / `identifyBy`**: Update and Delete now exclusively use Lookup for row identification, consistent with a database-like approach
+- **Removed `batch` operation**: Simplified node UI; the backend API endpoint (`/api/excel/batch`) remains available for direct HTTP calls
+- **Update block indentation**: Consistent indentation throughout the update operation block
+
+### Tests
+- Updated test suite to verify `resourceLocator` structure for all three dynamic fields (`fileName`, `sheetName`, `lookupColumn`)
+- Removed `Row Number` and `Batch` related tests (78 tests total, all passing)
+
 ## [1.0.3] - 2026-01-16
 
 ### Added

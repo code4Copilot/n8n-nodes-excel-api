@@ -7,6 +7,23 @@
 
 > 📖 **[中文版本](CHANGELOG_zh-tw.md)** | **[English Version](CHANGELOG.md)**
 
+## [1.0.4] - 2026-02-28
+
+### 修正
+- **純日期字串不再附加時間**：`"2024-01-15"` 現在保持為 `"2024-01-15"`，不再被轉換為 `"2024-01-15T00:00:00.000Z"`
+- **Read 操作空工作表**：工作表無資料列時，回傳一致的 `{ success: true, data: [] }` 而非原始 API response 物件
+- **JSON 範例字串修正**：`default` 和 `hint` 改用 `JSON.stringify()` 模式，避免値含特殊字元時格式錯誤
+
+### 變更
+- **`fileName`、`sheetName`、`lookupColumn` 改為 `resourceLocator`**：解決 n8n UI 切換檔案時下拉選單不自動刷新的問題；每次開啟選單都從 API 取得最新資料
+- **移除 `rowNumber` / `identifyBy`**：Update 和 Delete 統一僅使用 Lookup 識別列，符合類資料庫的操作方式
+- **移除 `batch` 操作**：簡化節點介面；後端 API 端點（`/api/excel/batch`）仍可透過直接 HTTP 呼叫使用
+- **Update 區塊縮排整理**：整個 update 操作區塊縮排一致
+
+### 測試
+- 更新測試套件以驗證三個動態欄位（`fileName`、`sheetName`、`lookupColumn`）的 `resourceLocator` 結構
+- 移除 `Row Number` 和 `Batch` 相關測試（共 78 個測試，全部通過）
+
 ## [1.0.3] - 2026-01-16
 
 ### 新增
