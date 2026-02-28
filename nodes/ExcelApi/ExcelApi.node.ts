@@ -612,6 +612,11 @@ export class ExcelApi implements INodeType {
 					if (responseData.success && responseData.data) {
 						const data = responseData.data as any[][];
 						
+						if (data.length <= 1) {
+							returnData.push({ json: { success: true, data: [] } });
+							continue;
+						}
+
 						if (data.length > 1) {
 							const headers = data[0];
 							const hasHeaders = headers.every((h: any) => typeof h === 'string' && h.length > 0);
@@ -650,24 +655,24 @@ export class ExcelApi implements INodeType {
 						valuesToSet = valuesToSetRaw;
 					}
 
-				// 自動轉換值的型態
-				const convertedValuesToSet = convertObjectValues(valuesToSet);
+					// 自動轉換値的型態
+					const convertedValuesToSet = convertObjectValues(valuesToSet);
 
-				// Build request body
-				const requestBody: any = {
-					file: fileName,
-					sheet: sheetName,
-					values_to_set: convertedValuesToSet,
-				};
+					// Build request body
+					const requestBody: any = {
+						file: fileName,
+						sheet: sheetName,
+						values_to_set: convertedValuesToSet,
+					};
 
-				const lookupColumnRaw = this.getNodeParameter('lookupColumn', i) as any;
-				const lookupColumn = (lookupColumnRaw && typeof lookupColumnRaw === 'object' ? lookupColumnRaw.value : lookupColumnRaw) as string;
-				const lookupValue = this.getNodeParameter('lookupValue', i) as string;
-				const processMode = this.getNodeParameter('processMode', i) as string;
-				
-				requestBody.lookup_column = lookupColumn;
-				requestBody.lookup_value = lookupValue;
-				requestBody.process_all = (processMode === 'all');
+					const lookupColumnRaw = this.getNodeParameter('lookupColumn', i) as any;
+					const lookupColumn = (lookupColumnRaw && typeof lookupColumnRaw === 'object' ? lookupColumnRaw.value : lookupColumnRaw) as string;
+					const lookupValue = this.getNodeParameter('lookupValue', i) as string;
+					const processMode = this.getNodeParameter('processMode', i) as string;
+					
+					requestBody.lookup_column = lookupColumn;
+					requestBody.lookup_value = lookupValue;
+					requestBody.process_all = (processMode === 'all');
 
 					responseData = await this.helpers.request({
 						method: 'PUT',
