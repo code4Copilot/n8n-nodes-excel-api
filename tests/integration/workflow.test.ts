@@ -88,38 +88,6 @@ describe('Excel API Integration Tests', () => {
     });
   });
 
-  describe('Batch Operations', () => {
-    it('should handle multiple operations in batch', async () => {
-      mockFunctions.setParameter('operation', 'batch', 0);
-      mockFunctions.setParameter('fileName', 'test.xlsx', 0);
-      mockFunctions.setParameter('sheetName', 'Sheet1', 0);
-      mockFunctions.setParameter('batchOperations', JSON.stringify([
-        { type: 'append', values: ['E100', '員工A', '技術部'] },
-        { type: 'append', values: ['E101', '員工B', '人資部'] },
-        { type: 'update', row: 3, values: ['E100', '更新員工', '技術部'] },
-      ]), 0);
-      mockFunctions.setInputData([{ json: {} }]);
-
-      mockFunctions.setRequestResponse(
-        'http://localhost:8000/api/excel/batch',
-        {
-          success: true,
-          results: [
-            { success: true, operation: 'append', row: 5 },
-            { success: true, operation: 'append', row: 6 },
-            { success: true, operation: 'update', row: 3 },
-          ],
-        }
-      );
-
-      const executeFunctions = mockFunctions.getExecuteFunctions();
-      const result = await excelApi.execute.call(executeFunctions);
-
-      expect(result[0][0].json.success).toBe(true);
-      expect(result[0][0].json.results).toHaveLength(3);
-    });
-  });
-
   describe('Error Recovery', () => {
     it('should handle API errors during workflow', async () => {
       mockFunctions.setParameter('operation', 'read', 0);

@@ -22,7 +22,6 @@ This node works with [Excel API Server](https://github.com/code4Copilot/excel-ap
 - ✅ **Data Integrity** - No data loss or corruption
 - ✅ **Multi-User Support** - Perfect for multi-user HTML form submissions
 - ✅ **Google Sheets-like Interface** - Familiar operations in n8n
-- ✅ **Batch Operations** - Efficient bulk updates
 
 ## 📦 Installation
 
@@ -152,39 +151,17 @@ Read data from Excel file.
 - Return raw data array if no headers
 
 ### 3. Update
-Update existing row data.
-
-**Identify Methods:**
-
-#### By Row Number
-Directly specify row number to update (starts from 2, row 1 is header).
-
-**Example:**
-```json
-{
-  "operation": "update",
-  "identifyBy": "rowNumber",
-  "rowNumber": 5,
-  "valuesToSet": {
-    "Status": "Completed",
-    "Update Date": "2025-12-21"
-  }
-}
-```
-
-#### By Lookup
-Find rows to update by looking up specific column values.
+Update existing row data by looking up specific column values.
 
 **Process Modes:**
 
-##### All Matching Records - Default
-Update all matching rows, suitable for batch update scenarios.
+#### All Matching Records - Default
+Update all matching rows, suitable for scenarios where multiple rows share the same value.
 
 **Example: Update all IT department employees**
 ```json
 {
   "operation": "update",
-  "identifyBy": "lookup",
   "lookupColumn": "Department",
   "lookupValue": "IT",
   "processMode": "all",
@@ -195,14 +172,13 @@ Update all matching rows, suitable for batch update scenarios.
 }
 ```
 
-##### First Match Only
+#### First Match Only
 Update only the first matching record, suitable for unique identifier lookups.
 
 **Example: Update specific employee data**
 ```json
 {
   "operation": "update",
-  "identifyBy": "lookup",
   "lookupColumn": "Employee ID",
   "lookupValue": "E100",
   "processMode": "first",
@@ -215,50 +191,34 @@ Update only the first matching record, suitable for unique identifier lookups.
 
 **💡 Usage Tips:**
 - When looking up by unique identifiers (Employee ID, Email), use `processMode: "first"` for better performance
-- Use `processMode: "all"` when batch updating multiple records
+- Use `processMode: "all"` when updating multiple records that share the same value
 - Default is `"all"` to ensure no matching records are missed
 
 ### 4. Delete
-Delete a row from the sheet.
-
-**Identify Methods:**
-
-#### By Row Number
-```json
-{
-  "operation": "delete",
-  "identifyBy": "rowNumber",
-  "rowNumber": 5
-}
-```
-
-#### By Lookup
-Find rows to delete by looking up specific column values.
+Delete rows from the sheet by looking up specific column values.
 
 **Process Modes:**
 
-##### All Matching Records - Default
+#### All Matching Records - Default
 Delete all matching rows.
 
 **Example: Delete all terminated employees**
 ```json
 {
   "operation": "delete",
-  "identifyBy": "lookup",
   "lookupColumn": "Status",
   "lookupValue": "Terminated",
   "processMode": "all"
 }
 ```
 
-##### First Match Only
+#### First Match Only
 Delete only the first matching record.
 
 **Example: Delete specific employee**
 ```json
 {
   "operation": "delete",
-  "identifyBy": "lookup",
   "lookupColumn": "Employee ID",
   "lookupValue": "E100",
   "processMode": "first"
@@ -268,31 +228,7 @@ Delete only the first matching record.
 **⚠️ Important:**
 - Delete operations cannot be undone, use with caution
 - When looking up by unique identifiers, use `processMode: "first"`
-- Verify lookup conditions carefully when batch deleting to avoid accidental data loss
-
-### 5. Batch
-Execute multiple operations at once (more efficient).
-
-**Example:**
-```json
-{
-  "operations": [
-    {
-      "type": "append",
-      "values": ["E010", "Alice", "Marketing", "Specialist", "65000"]
-    },
-    {
-      "type": "update",
-      "row": 5,
-      "values": ["E005", "Updated Name", "IT", "Manager", "90000"]
-    },
-    {
-      "type": "delete",
-      "row": 10
-    }
-  ]
-}
-```
+- Verify lookup conditions carefully to avoid accidental data loss
 
 ## 🎨 Usage Examples
 
@@ -372,23 +308,7 @@ document.getElementById('registrationForm').addEventListener('submit', async (e)
 └──────────────────┘
 ```
 
-### Example 3: Batch Updates
-
-```
-┌──────────────────┐
-│ Code             │  Prepare operations array
-│                  │  operations = [...]
-└────────┬─────────┘
-         │
-         ▼
-┌──────────────────┐
-│ Excel API        │  Operation: Batch
-│ (Batch)          │  File: data.xlsx
-│                  │  Operations: {{ $json.operations }}
-└──────────────────┘
-```
-
-### Example 4: Update Salary by Employee ID
+### Example 3: Update Salary by Employee ID
 
 ```
 ┌──────────────────┐
@@ -412,7 +332,7 @@ document.getElementById('registrationForm').addEventListener('submit', async (e)
 └──────────────────┘
 ```
 
-### Example 5: Batch Department Status Update
+### Example 4: Batch Department Status Update
 
 **Use Case:** Review all employees in a department at once
 
@@ -442,7 +362,7 @@ document.getElementById('registrationForm').addEventListener('submit', async (e)
 └──────────────────┘
 ```
 
-### Example 6: Clean Up Expired Data
+### Example 5: Clean Up Expired Data
 
 **Use Case:** Periodically delete employee records terminated over a year ago
 
@@ -559,21 +479,7 @@ pm2 restart n8n
 
 ## 📊 Performance Optimization Tips
 
-### 1. Use Batch Operations
-```javascript
-// ❌ Bad: Multiple single operations
-for (item of items) {
-  await appendRow(item);
-}
-
-// ✅ Good: One batch operation
-await batchOperations(items.map(item => ({
-  type: "append",
-  values: item.values
-})));
-```
-
-### 2. Specify Range When Reading
+### 1. Specify Range When Reading
 ```javascript
 // ❌ Bad: Read entire file
 range: ""
@@ -582,7 +488,7 @@ range: ""
 range: "A1:D100"
 ```
 
-### 3. Use Efficient Workflows
+### 2. Use Efficient Workflows
 - Combine related operations in one workflow
 - Reduce number of API calls
 - Use caching appropriately
@@ -618,10 +524,9 @@ range: "A1:D100"
 - ✅ No need to remember column order
 
 ### Advanced Update and Delete
-- ✅ Support operations by row number
 - ✅ Support operations by column value lookup
 - ✅ Can update specific columns without affecting others
-- ✅ Batch processing support with process modes
+- ✅ Process modes: all matching records or first match only
 
 ### Lookup Column Selection
 - ✅ Dynamic dropdown selection of Excel headers

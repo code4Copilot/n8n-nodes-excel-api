@@ -20,7 +20,7 @@ n8n 社群節點，透過 API 存取 Excel 檔案，具備**並行安全保護**
 - ✅ **資料完整性** - 無資料遺失或損毀
 - ✅ **多使用者支援** - 完美適用於多人提交的 HTML 表單
 - ✅ **類似 Google Sheets 的介面** - 在 n8n 中熟悉的操作方式
-- ✅ **批次操作** - 高效的大量更新
+
 
 ## 📦 安裝方式
 
@@ -150,39 +150,17 @@ docker run -d \
 - 若無表頭則回傳原始資料陣列
 
 ### 3. Update（更新）
-更新現有列的資料。
-
-**識別方式：**
-
-#### 依列號（Row Number）
-直接指定要更新的列號（從 2 開始，第 1 列為表頭）。
-
-**範例：**
-```json
-{
-  "operation": "update",
-  "identifyBy": "rowNumber",
-  "rowNumber": 5,
-  "valuesToSet": {
-    "狀態": "已完成",
-    "更新日期": "2025-12-21"
-  }
-}
-```
-
-#### 依查找（Lookup）
-透過查找特定欄位的值來找到要更新的列。
+透過查找欄位對應的方式更新現有列的資料。
 
 **處理模式 (Process Mode)：**
 
-##### 處理所有符合記錄 (All Matching Records) - 預設
-更新所有符合條件的列，適用於批次更新場景。
+#### 處理所有符合記錄 (All Matching Records) - 預設
+更新所有符合條件的列，適用於多列共用相同屬性值的場景。
 
 **範例：更新所有技術部員工的狀態**
 ```json
 {
   "operation": "update",
-  "identifyBy": "lookup",
   "lookupColumn": "部門",
   "lookupValue": "技術部",
   "processMode": "all",
@@ -193,14 +171,13 @@ docker run -d \
 }
 ```
 
-##### 僅處理第一筆 (First Match Only)
+#### 僅處理第一筆 (First Match Only)
 只更新第一筆符合的記錄，適用於唯一識別碼查找。
 
 **範例：更新特定員工的資料**
 ```json
 {
   "operation": "update",
-  "identifyBy": "lookup",
   "lookupColumn": "員工編號",
   "lookupValue": "E100",
   "processMode": "first",
@@ -213,50 +190,34 @@ docker run -d \
 
 **💡 使用建議：**
 - 使用唯一識別碼（如員工編號、Email）查找時，建議使用 `processMode: "first"` 以提升效能
-- 需要批次更新多筆記錄時，使用 `processMode: "all"`
+- 需要更新共用相同屬性的多筆記錄時，使用 `processMode: "all"`
 - 預設值為 `"all"` 以確保不會遺漏任何符合的記錄
 
 ### 4. Delete（刪除）
-從工作表中刪除一列。
-
-**識別方式：**
-
-#### 依列號
-```json
-{
-  "operation": "delete",
-  "identifyBy": "rowNumber",
-  "rowNumber": 5
-}
-```
-
-#### 依查找
-透過查找特定欄位的值來找到要刪除的列。
+透過查找欄位對應的方式從工作表中刪除列。
 
 **處理模式 (Process Mode)：**
 
-##### 處理所有符合記錄 (All Matching Records) - 預設
+#### 處理所有符合記錄 (All Matching Records) - 預設
 刪除所有符合條件的列。
 
 **範例：刪除所有已離職員工**
 ```json
 {
   "operation": "delete",
-  "identifyBy": "lookup",
   "lookupColumn": "狀態",
   "lookupValue": "已離職",
   "processMode": "all"
 }
 ```
 
-##### 僅處理第一筆 (First Match Only)
+#### 僅處理第一筆 (First Match Only)
 只刪除第一筆符合的記錄。
 
 **範例：刪除特定員工**
 ```json
 {
   "operation": "delete",
-  "identifyBy": "lookup",
   "lookupColumn": "員工編號",
   "lookupValue": "E100",
   "processMode": "first"
@@ -266,33 +227,7 @@ docker run -d \
 **⚠️ 注意事項：**
 - 刪除操作無法復原，請謹慎使用
 - 使用唯一識別碼查找時，建議使用 `processMode: "first"`
-- 批次刪除時務必確認查找條件正確，避免誤刪資料
-
-### 5. Batch（批次）
-一次執行多個操作（更有效率）。
-
-**範例：**
-```json
-{
-  "operations": [
-    {
-      "type": "append",
-      "values": ["E010", "Alice", "行銷部", "專員", "65000"]
-    },
-    {
-      "type": "update",
-      "row": 5,
-      "values": ["E005", "Updated Name", "IT部", "經理", "90000"]
-    },
-    {
-      "type": "delete",
-      "row": 10
-    }
-  ]
-}
-```
-
-## 🎨 使用範例
+- 務必確認查找條件正確，避免誤刪資料
 
 ## 🎨 使用範例
 
@@ -372,23 +307,7 @@ document.getElementById('registrationForm').addEventListener('submit', async (e)
 └──────────────────┘
 ```
 
-### 範例 3：批次更新
-
-```
-┌──────────────────┐
-│ Code             │  準備操作陣列
-│                  │  operations = [...]
-└────────┬─────────┘
-         │
-         ▼
-┌──────────────────┐
-│ Excel API        │  操作：Batch
-│ (批次)           │  檔案：data.xlsx
-│                  │  操作：{{ $json.operations }}
-└──────────────────┘
-```
-
-### 範例 4：透過員工編號更新薪資
+### 範例 3：透過員工編號更新薪資
 
 ```
 ┌──────────────────┐
@@ -412,7 +331,7 @@ document.getElementById('registrationForm').addEventListener('submit', async (e)
 └──────────────────┘
 ```
 
-### 範例 5：批次更新部門狀態
+### 範例 4：批次更新部門狀態
 
 **使用情境：** 一次審核整個部門的所有員工
 
@@ -442,7 +361,7 @@ document.getElementById('registrationForm').addEventListener('submit', async (e)
 └──────────────────┘
 ```
 
-### 範例 6：清理過期資料
+### 範例 5：清理過期資料
 
 **使用情境：** 定期刪除已離職超過一年的員工記錄
 
@@ -559,21 +478,7 @@ pm2 restart n8n
 
 ## 📊 效能優化建議
 
-### 1. 使用批次操作
-```javascript
-// ❌ 不好：多次單一操作
-for (item of items) {
-  await appendRow(item);
-}
-
-// ✅ 好：一次批次操作
-await batchOperations(items.map(item => ({
-  type: "append",
-  values: item.values
-})));
-```
-
-### 2. 讀取時指定範圍
+### 1. 讀取時指定範圍
 ```javascript
 // ❌ 不好：讀取整個檔案
 range: ""
@@ -582,7 +487,7 @@ range: ""
 range: "A1:D100"
 ```
 
-### 3. 使用高效的工作流程
+### 2. 使用高效的工作流程
 - 在一個工作流程中組合相關操作
 - 減少 API 呼叫次數
 - 適當使用快取
@@ -618,9 +523,9 @@ range: "A1:D100"
 - ✅ 不需要記住欄位順序
 
 ### 進階更新與刪除
-- ✅ 支援依列號直接操作
-- ✅ 支援依查找欄位值來操作
+- ✅ 支援依查找欄位値來操作
 - ✅ 可更新特定欄位而不影響其他欄位
+- ✅ 處理模式：處理所有符合或僅第一筆
 
 ## 🤝 貢獻
 

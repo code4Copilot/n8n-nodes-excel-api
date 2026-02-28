@@ -123,7 +123,6 @@ export class ExcelApi implements INodeType {
 					{ name: 'Read', value: 'read', action: 'Read Excel file', description: 'Read data from Excel file' },
 					{ name: 'Update', value: 'update', action: 'Update row', description: 'Update an existing row' },
 					{ name: 'Delete', value: 'delete', action: 'Delete row', description: 'Delete a row' },
-					{ name: 'Batch', value: 'batch', action: 'Batch operations', description: 'Execute multiple operations at once' },
 				],
 				default: 'append',
 			},
@@ -324,27 +323,6 @@ export class ExcelApi implements INodeType {
 				required: true,
 				description: 'Object with column names as keys and new values',
 				hint: 'Example: {{ JSON.stringify({ "Status": $json["status"], "Salary": $json["salary"] }) }}'
-			},
-			// Batch operation
-			{
-				displayName: 'Operations',
-				name: 'batchOperations',
-				type: 'json',
-				displayOptions: { show: { operation: ['batch'] } },
-				default: `[
-  {
-    "type": "append",
-    "values": ["value1", "value2"]
-  },
-  {
-    "type": "update",
-    "row": 5,
-    "values": ["new1", "new2"]
-  }
-]`,
-				required: true,
-				description: 'Array of operations to execute',
-				hint: 'Each operation should have "type" (append/update/delete) and related fields',
 			},
 		],
 	};
@@ -744,38 +722,6 @@ export class ExcelApi implements INodeType {
 							`No matching rows found. Lookup column: "${requestBody.lookup_column}", Lookup value: "${requestBody.lookup_value}"`,
 						);
 					}
-
-				} else if (operation === 'batch') {
-					const batchOperationsRaw = this.getNodeParameter('batchOperations', i) as string;
-					
-					let batchOperations: any[];
-					if (typeof batchOperationsRaw === 'string') {
-						try {
-							batchOperations = JSON.parse(batchOperationsRaw);
-						} catch {
-							throw new NodeOperationError(
-								this.getNode(),
-								'Batch Operations must be a valid JSON array',
-							);
-						}
-					} else {
-						batchOperations = batchOperationsRaw;
-					}
-
-					responseData = await this.helpers.request({
-						method: 'POST',
-						url: `${apiUrl}/api/excel/batch`,
-						headers: {
-							'Authorization': `Bearer ${apiToken}`,
-							'Content-Type': 'application/json',
-						},
-						body: {
-							file: fileName,
-							sheet: sheetName,
-							operations: batchOperations,
-						},
-						json: true,
-					});
 
 				} else {
 					throw new NodeOperationError(

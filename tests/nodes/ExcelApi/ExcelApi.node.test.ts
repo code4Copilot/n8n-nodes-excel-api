@@ -37,11 +37,11 @@ describe('ExcelApi Node', () => {
         (p) => p.name === 'operation'
       );
       expect(operationProperty).toBeDefined();
-      expect(operationProperty?.options).toHaveLength(5);
+      expect(operationProperty?.options).toHaveLength(4);
       
       const operations = operationProperty?.options as any[];
       expect(operations.map(o => o.value)).toEqual([
-        'append', 'read', 'update', 'delete', 'batch'
+        'append', 'read', 'update', 'delete'
       ]);
     });
 
@@ -832,36 +832,6 @@ describe('ExcelApi Node', () => {
       await expect(
         excelApi.execute.call(executeFunctions)
       ).rejects.toThrow('No matching rows found. Lookup column: "員工編號", Lookup value: "E999"');
-    });
-  });
-
-  describe('Execute Method - Batch Operation', () => {
-    it('should execute batch operations', async () => {
-      mockFunctions.setParameter('operation', 'batch', 0);
-      mockFunctions.setParameter('fileName', 'employees.xlsx', 0);
-      mockFunctions.setParameter('sheetName', 'Sheet1', 0);
-      mockFunctions.setParameter('batchOperations', JSON.stringify([
-        { type: 'append', values: ['E100', '測試'] },
-        { type: 'update', row: 5, values: ['E005', '更新'] },
-      ]), 0);
-      mockFunctions.setInputData([{ json: {} }]);
-
-      mockFunctions.setRequestResponse(
-        'http://localhost:8000/api/excel/batch',
-        {
-          success: true,
-          results: [
-            { success: true, operation: 'append' },
-            { success: true, operation: 'update' },
-          ],
-        }
-      );
-
-      const executeFunctions = mockFunctions.getExecuteFunctions();
-      const result = await excelApi.execute.call(executeFunctions);
-
-      expect(result[0][0].json.success).toBe(true);
-      expect(result[0][0].json.results).toHaveLength(2);
     });
   });
 
