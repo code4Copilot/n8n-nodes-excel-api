@@ -44,45 +44,71 @@ describe('ExcelApi Node', () => {
         'append', 'read', 'update', 'delete', 'batch'
       ]);
     });
+
+    describe('reloadOnChange for dynamic dropdown fields', () => {
+      it('sheetName should be type resourceLocator (always loads fresh, no caching)', () => {
+        const sheetNameProp = excelApi.description.properties.find(
+          (p) => p.name === 'sheetName'
+        );
+        expect(sheetNameProp).toBeDefined();
+        expect(sheetNameProp?.type).toBe('resourceLocator');
+      });
+
+      it('sheetName list mode should use searchListMethod: searchExcelSheets', () => {
+        const sheetNameProp = excelApi.description.properties.find(
+          (p) => p.name === 'sheetName'
+        );
+        const listMode = (sheetNameProp as any)?.modes?.find((m: any) => m.type === 'list');
+        expect(listMode).toBeDefined();
+        expect(listMode?.typeOptions?.searchListMethod).toBe('searchExcelSheets');
+      });
+
+      it('sheetName should also have a manual string input mode as fallback', () => {
+        const sheetNameProp = excelApi.description.properties.find(
+          (p) => p.name === 'sheetName'
+        );
+        const stringMode = (sheetNameProp as any)?.modes?.find((m: any) => m.type === 'string');
+        expect(stringMode).toBeDefined();
+      });
+
+      it('lookupColumn should be type resourceLocator (always loads fresh, no caching)', () => {
+        const lookupColumnProp = excelApi.description.properties.find(
+          (p) => p.name === 'lookupColumn'
+        );
+        expect(lookupColumnProp).toBeDefined();
+        expect(lookupColumnProp?.type).toBe('resourceLocator');
+      });
+
+      it('lookupColumn list mode should use searchListMethod: searchColumnNames', () => {
+        const lookupColumnProp = excelApi.description.properties.find(
+          (p) => p.name === 'lookupColumn'
+        );
+        const listMode = (lookupColumnProp as any)?.modes?.find((m: any) => m.type === 'list');
+        expect(listMode).toBeDefined();
+        expect(listMode?.typeOptions?.searchListMethod).toBe('searchColumnNames');
+      });
+
+      it('lookupColumn should also have a manual string input mode as fallback', () => {
+        const lookupColumnProp = excelApi.description.properties.find(
+          (p) => p.name === 'lookupColumn'
+        );
+        const stringMode = (lookupColumnProp as any)?.modes?.find((m: any) => m.type === 'string');
+        expect(stringMode).toBeDefined();
+      });
+
+      it('fileName should be type resourceLocator (loads fresh on every open)', () => {
+        const fileNameProp = excelApi.description.properties.find(
+          (p) => p.name === 'fileName'
+        );
+        expect(fileNameProp?.type).toBe('resourceLocator');
+        const listMode = (fileNameProp as any)?.modes?.find((m: any) => m.type === 'list');
+        expect(listMode?.typeOptions?.searchListMethod).toBe('searchExcelFiles');
+      });
+    });
   });
 
   describe('Load Options Methods', () => {
-    describe('getExcelFiles', () => {
-      it('should load Excel files successfully', async () => {
-        mockFunctions.setRequestResponse(
-          'http://localhost:8000/api/excel/files',
-          {
-            success: true,
-            files: ['employees.xlsx', 'sales.xlsx', 'inventory.xlsx'],
-          }
-        );
-
-        const loadFunctions = mockFunctions.getLoadOptionsFunctions();
-        const files = await excelApi.methods.loadOptions.getExcelFiles.call(
-          loadFunctions
-        );
-
-        expect(files).toHaveLength(3);
-        expect(files[0]).toEqual({ name: 'employees.xlsx', value: 'employees.xlsx' });
-        expect(files[1]).toEqual({ name: 'sales.xlsx', value: 'sales.xlsx' });
-      });
-
-      it('should return empty array on API error', async () => {
-        mockFunctions.setRequestResponse(
-          'http://localhost:8000/api/excel/files',
-          { error: new Error('API Error') }
-        );
-
-        const loadFunctions = mockFunctions.getLoadOptionsFunctions();
-        const files = await excelApi.methods.loadOptions.getExcelFiles.call(
-          loadFunctions
-        );
-
-        expect(files).toEqual([]);
-      });
-    });
-
-    describe('getExcelSheets', () => {
+    describe('getExcelSheets (loadOptions fallback)', () => {
       it('should load sheets from selected file', async () => {
         mockFunctions.setParameter('fileName', 'employees.xlsx');
         mockFunctions.setRequestResponse(
@@ -195,6 +221,215 @@ describe('ExcelApi Node', () => {
 
         expect(columns).toHaveLength(2);
         expect(columns[0]).toEqual({ name: 'Column A', value: 'Column A' });
+      });
+    });
+  });
+
+  describe('List Search Methods (resourceLocator)', () => {
+    describe('searchExcelFiles', () => {
+      it('should return all files when no filter provided', async () => {
+        mockFunctions.setRequestResponse(
+          'http://localhost:8000/api/excel/files',
+          { success: true, files: ['employees.xlsx', 'sales.xlsx', 'inventory.xlsx'] }
+        );
+
+        const loadFunctions = mockFunctions.getLoadOptionsFunctions();
+        const result = await excelApi.methods.listSearch.searchExcelFiles.call(
+          loadFunctions, undefined
+        );
+
+        expect(result.results).toHaveLength(3);
+        expect(result.results[0]).toEqual({ name: 'employees.xlsx', value: 'employees.xlsx' });
+        expect(result.results[2]).toEqual({ name: 'inventory.xlsx', value: 'inventory.xlsx' });
+      });
+
+      it('should filter files by search text (case-insensitive)', async () => {
+        mockFunctions.setRequestResponse(
+          'http://localhost:8000/api/excel/files',
+          { success: true, files: ['employees.xlsx', 'Employee_backup.xlsx', 'sales.xlsx'] }
+        );
+
+        const loadFunctions = mockFunctions.getLoadOptionsFunctions();
+        const result = await excelApi.methods.listSearch.searchExcelFiles.call(
+          loadFunctions, 'employee'
+        );
+
+        expect(result.results).toHaveLength(2);
+        expect(result.results.map((r: any) => r.value)).toEqual(['employees.xlsx', 'Employee_backup.xlsx']);
+      });
+
+      it('should return empty results on API error', async () => {
+        mockFunctions.setRequestResponse(
+          'http://localhost:8000/api/excel/files',
+          { error: new Error('API Error') }
+        );
+
+        const loadFunctions = mockFunctions.getLoadOptionsFunctions();
+        const result = await excelApi.methods.listSearch.searchExcelFiles.call(
+          loadFunctions, undefined
+        );
+
+        expect(result.results).toEqual([]);
+      });
+    });
+
+    describe('searchExcelSheets', () => {
+      it('should return all sheets when no filter provided', async () => {
+        mockFunctions.setParameter('fileName', 'employees.xlsx');
+        mockFunctions.setRequestResponse(
+          'http://localhost:8000/api/excel/sheets?file=employees.xlsx',
+          { success: true, sheets: ['Sheet1', 'Overview', 'Archive'] }
+        );
+
+        const loadFunctions = mockFunctions.getLoadOptionsFunctions();
+        const result = await excelApi.methods.listSearch.searchExcelSheets.call(
+          loadFunctions, undefined
+        );
+
+        expect(result.results).toHaveLength(3);
+        expect(result.results[0]).toEqual({ name: 'Sheet1', value: 'Sheet1' });
+        expect(result.results[1]).toEqual({ name: 'Overview', value: 'Overview' });
+      });
+
+      it('should filter sheets by search text (case-insensitive)', async () => {
+        mockFunctions.setParameter('fileName', 'employees.xlsx');
+        mockFunctions.setRequestResponse(
+          'http://localhost:8000/api/excel/sheets?file=employees.xlsx',
+          { success: true, sheets: ['Sheet1', 'Overview', 'Archive', 'sheet2'] }
+        );
+
+        const loadFunctions = mockFunctions.getLoadOptionsFunctions();
+        const result = await excelApi.methods.listSearch.searchExcelSheets.call(
+          loadFunctions, 'sheet'
+        );
+
+        expect(result.results).toHaveLength(2);
+        expect(result.results.map((r: any) => r.value)).toEqual(['Sheet1', 'sheet2']);
+      });
+
+      it('should return empty results when no file selected', async () => {
+        mockFunctions.setParameter('fileName', '');
+
+        const loadFunctions = mockFunctions.getLoadOptionsFunctions();
+        const result = await excelApi.methods.listSearch.searchExcelSheets.call(
+          loadFunctions, undefined
+        );
+
+        expect(result.results).toEqual([]);
+      });
+
+      it('should return empty results on API error', async () => {
+        mockFunctions.setParameter('fileName', 'employees.xlsx');
+        mockFunctions.setRequestResponse(
+          'http://localhost:8000/api/excel/sheets?file=employees.xlsx',
+          { error: new Error('API Error') }
+        );
+
+        const loadFunctions = mockFunctions.getLoadOptionsFunctions();
+        const result = await excelApi.methods.listSearch.searchExcelSheets.call(
+          loadFunctions, undefined
+        );
+
+        expect(result.results).toEqual([]);
+      });
+
+      it('should handle resourceLocator object format for fileName', async () => {
+        mockFunctions.setParameter('fileName', { mode: 'list', value: 'employees.xlsx' });
+        mockFunctions.setRequestResponse(
+          'http://localhost:8000/api/excel/sheets?file=employees.xlsx',
+          { success: true, sheets: ['Sheet1', 'Data'] }
+        );
+
+        const loadFunctions = mockFunctions.getLoadOptionsFunctions();
+        const result = await excelApi.methods.listSearch.searchExcelSheets.call(
+          loadFunctions, undefined
+        );
+
+        expect(result.results).toHaveLength(2);
+        expect(result.results[0].value).toBe('Sheet1');
+      });
+    });
+
+    describe('searchColumnNames', () => {
+      it('should return all columns when no filter provided', async () => {
+        mockFunctions.setParameter('fileName', 'employees.xlsx');
+        mockFunctions.setParameter('sheetName', 'Sheet1');
+        mockFunctions.setRequestResponse(
+          'http://localhost:8000/api/excel/headers?file=employees.xlsx&sheet=Sheet1',
+          { success: true, headers: ['ID', 'Name', 'Department', 'Salary'] }
+        );
+
+        const loadFunctions = mockFunctions.getLoadOptionsFunctions();
+        const result = await excelApi.methods.listSearch.searchColumnNames.call(
+          loadFunctions, undefined
+        );
+
+        expect(result.results).toHaveLength(4);
+        expect(result.results[0]).toEqual({ name: 'ID', value: 'ID' });
+        expect(result.results[2]).toEqual({ name: 'Department', value: 'Department' });
+      });
+
+      it('should filter columns by search text (case-insensitive)', async () => {
+        mockFunctions.setParameter('fileName', 'employees.xlsx');
+        mockFunctions.setParameter('sheetName', 'Sheet1');
+        mockFunctions.setRequestResponse(
+          'http://localhost:8000/api/excel/headers?file=employees.xlsx&sheet=Sheet1',
+          { success: true, headers: ['ID', 'Name', 'department_code', 'Salary'] }
+        );
+
+        const loadFunctions = mockFunctions.getLoadOptionsFunctions();
+        const result = await excelApi.methods.listSearch.searchColumnNames.call(
+          loadFunctions, 'depart'
+        );
+
+        expect(result.results).toHaveLength(1);
+        expect(result.results[0].value).toBe('department_code');
+      });
+
+      it('should handle resourceLocator object format for sheetName', async () => {
+        mockFunctions.setParameter('fileName', 'employees.xlsx');
+        mockFunctions.setParameter('sheetName', { mode: 'list', value: 'Sheet1' });
+        mockFunctions.setRequestResponse(
+          'http://localhost:8000/api/excel/headers?file=employees.xlsx&sheet=Sheet1',
+          { success: true, headers: ['ID', 'Name'] }
+        );
+
+        const loadFunctions = mockFunctions.getLoadOptionsFunctions();
+        const result = await excelApi.methods.listSearch.searchColumnNames.call(
+          loadFunctions, undefined
+        );
+
+        expect(result.results).toHaveLength(2);
+        expect(result.results[0].value).toBe('ID');
+      });
+
+      it('should handle resourceLocator object format for fileName', async () => {
+        mockFunctions.setParameter('fileName', { mode: 'list', value: 'employees.xlsx' });
+        mockFunctions.setParameter('sheetName', 'Sheet1');
+        mockFunctions.setRequestResponse(
+          'http://localhost:8000/api/excel/headers?file=employees.xlsx&sheet=Sheet1',
+          { success: true, headers: ['ID', 'Name'] }
+        );
+
+        const loadFunctions = mockFunctions.getLoadOptionsFunctions();
+        const result = await excelApi.methods.listSearch.searchColumnNames.call(
+          loadFunctions, undefined
+        );
+
+        expect(result.results).toHaveLength(2);
+        expect(result.results[1].value).toBe('Name');
+      });
+
+      it('should return empty results when fileName or sheetName is missing', async () => {
+        mockFunctions.setParameter('fileName', '');
+        mockFunctions.setParameter('sheetName', '');
+
+        const loadFunctions = mockFunctions.getLoadOptionsFunctions();
+        const result = await excelApi.methods.listSearch.searchColumnNames.call(
+          loadFunctions, undefined
+        );
+
+        expect(result.results).toEqual([]);
       });
     });
   });
@@ -473,28 +708,6 @@ describe('ExcelApi Node', () => {
         excelApi.execute.call(executeFunctions)
       ).rejects.toThrow('No matching rows found. Lookup column: "員工編號", Lookup value: "E999"');
     });
-
-    it('should throw error when row number not found', async () => {
-      mockFunctions.setParameter('identifyBy', 'rowNumber', 0);
-      mockFunctions.setParameter('rowNumber', 999, 0);
-      mockFunctions.setParameter('valuesToSet', JSON.stringify({
-        '薪資': '90000',
-      }), 0);
-
-      mockFunctions.setRequestResponse(
-        'http://localhost:8000/api/excel/update_advanced',
-        {
-          success: true,
-          updated_count: 0, // No rows affected
-        }
-      );
-
-      const executeFunctions = mockFunctions.getExecuteFunctions();
-
-      await expect(
-        excelApi.execute.call(executeFunctions)
-      ).rejects.toThrow('Row 999 not found or is protected');
-    });
   });
 
   describe('Execute Method - Delete Operation', () => {
@@ -619,25 +832,6 @@ describe('ExcelApi Node', () => {
       await expect(
         excelApi.execute.call(executeFunctions)
       ).rejects.toThrow('No matching rows found. Lookup column: "員工編號", Lookup value: "E999"');
-    });
-
-    it('should throw error when row number not found', async () => {
-      mockFunctions.setParameter('identifyBy', 'rowNumber', 0);
-      mockFunctions.setParameter('rowNumber', 999, 0);
-
-      mockFunctions.setRequestResponse(
-        'http://localhost:8000/api/excel/delete_advanced',
-        {
-          success: true,
-          deleted_count: 0, // No rows affected
-        }
-      );
-
-      const executeFunctions = mockFunctions.getExecuteFunctions();
-
-      await expect(
-        excelApi.execute.call(executeFunctions)
-      ).rejects.toThrow('Row 999 not found or is protected');
     });
   });
 

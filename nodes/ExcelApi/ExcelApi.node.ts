@@ -2,6 +2,7 @@ import {
 	IExecuteFunctions,
 	ILoadOptionsFunctions,
 	INodeExecutionData,
+	INodeListSearchResult,
 	INodePropertyOptions,
 	INodeType,
 	INodeTypeDescription,
@@ -50,12 +51,16 @@ function convertValueType(value: any): any {
 		}
 	}
 
-	// 處理 ISO 日期格式
-	// 格式如：2024-01-15 或 2024-01-15T10:30:00 或 2024-01-15T10:30:00.000Z
-	if (/^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d{3}Z?)?)?$/.test(value.trim())) {
+	// 處理日期格式
+	// 只有日期（yyyy-MM-dd），直接回傳字串，不附加時間
+	if (/^\d{4}-\d{2}-\d{2}$/.test(value.trim())) {
+		return value.trim();
+	}
+
+	// 有時間的 ISO 格式（yyyy-MM-ddTHH:mm:ss...），才轉換為 ISO 字串
+	if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value.trim())) {
 		const date = new Date(value);
 		if (!isNaN(date.getTime())) {
-			// 返回 ISO 字串格式，Excel API Server 會處理
 			return date.toISOString();
 		}
 	}
@@ -69,17 +74,17 @@ function convertValueType(value: any): any {
  */
 function convertObjectValues(obj: any): any {
 	if (obj === null || obj === undefined) {
-		return obj;
+		return null;
 	}
 
 	if (Array.isArray(obj)) {
-		return obj.map(item => convertValueType(item));
+		return obj.map(item => convertObjectValues(item));
 	}
 
 	if (typeof obj === 'object') {
 		const converted: any = {};
 		for (const [key, value] of Object.entries(obj)) {
-			converted[key] = convertValueType(value);
+			converted[key] = convertObjectValues(value);
 		}
 		return converted;
 	}
@@ -126,25 +131,54 @@ export class ExcelApi implements INodeType {
 			{
 				displayName: 'File Name',
 				name: 'fileName',
-				type: 'options',
+				type: 'resourceLocator',
 				required: true,
-				typeOptions: {
-					loadOptionsMethod: 'getExcelFiles',
-				},
-				default: '',
+				default: { mode: 'list', value: '' },
 				description: 'Select an Excel file from the server',
+				modes: [
+					{
+						displayName: 'From List',
+						name: 'list',
+						type: 'list',
+						typeOptions: {
+							searchListMethod: 'searchExcelFiles',
+							searchable: true,
+						},
+					},
+					{
+						displayName: 'By Name',
+						name: 'name',
+						type: 'string',
+						placeholder: 'e.g. report.xlsx',
+						hint: 'Enter the exact Excel filename',
+					},
+				],
 			},
 			// Sheet selection
 			{
 				displayName: 'Sheet Name',
 				name: 'sheetName',
-				type: 'options',
-				typeOptions: {
-					loadOptionsMethod: 'getExcelSheets',
-					loadOptionsDependsOn: ['fileName'],
-				},
-				default: 'Sheet1',
+				type: 'resourceLocator',
+				default: { mode: 'list', value: '' },
 				description: 'Select a worksheet from the file',
+				modes: [
+					{
+						displayName: 'From List',
+						name: 'list',
+						type: 'list',
+						typeOptions: {
+							searchListMethod: 'searchExcelSheets',
+							searchable: true,
+						},
+					},
+					{
+						displayName: 'By Name',
+						name: 'name',
+						type: 'string',
+						placeholder: 'e.g. Sheet1',
+						hint: 'Enter the exact worksheet name',
+					},
+				],
 			},
 			// Append operation - Mode selection
 			{
@@ -174,10 +208,10 @@ export class ExcelApi implements INodeType {
 						appendMode: ['object']
 					} 
 				},
-				default: '{\n  "Column1": "{{ $json.field1 }}",\n  "Column2": "{{ $json.field2 }}"\n}',
+				default: '{{ JSON.stringify({\n  "Column1": $json["field1"],\n  "Column2": $json["field2"]\n}) }}',
 				required: true,
 				description: 'Object with column names as keys. Column names must match Excel headers exactly.',
-				hint: 'Example: {"員工編號": "{{ $json.body.employeeId }}", "姓名": "{{ $json.body.name }}"}',
+				hint: 'Example: {{ JSON.stringify({ "員工編號": $json["employeeId"], "姓名": $json["name"] }) }}',
 			},
 			// Append - Array Mode
 			{
@@ -205,54 +239,38 @@ export class ExcelApi implements INodeType {
 				description: 'Cell range to read (e.g., A1:D10). Leave empty to read all data',
 				placeholder: 'A1:D10',
 			},
-			// Update & Delete: Row Identification Method
-			{
-				displayName: 'Identify Row By',
-				name: 'identifyBy',
-				type: 'options',
-				displayOptions: { show: { operation: ['update', 'delete'] } },
-				options: [
-					{ name: 'Row Number', value: 'rowNumber', description: 'Specify the exact row number' },
-					{ name: 'Lookup', value: 'lookup', description: 'Find row by matching a column value' },
-				],
-				default: 'rowNumber',
-				description: 'How to identify the row to update/delete',
-			},
-			// Row Number (for direct specification)
-			{
-				displayName: 'Row Number',
-				name: 'rowNumber',
-				type: 'number',
-				displayOptions: { 
-					show: { 
-						operation: ['update', 'delete'],
-						identifyBy: ['rowNumber']
-					} 
-				},
-				required: true,
-				default: 2,
-				description: 'Row number to update/delete (1-based, row 1 is header)',
-				hint: '⚠️ Row 1 is protected (header row). Data rows start from row 2.',
-			},
-			// ✨ NEW: Lookup Column - 改為下拉選單
+			// Lookup Column
 			{
 				displayName: 'Lookup Column',
 				name: 'lookupColumn',
-				type: 'options',
-				typeOptions: {
-					loadOptionsMethod: 'getColumnNames',
-					loadOptionsDependsOn: ['fileName', 'sheetName'],
-				},
+				type: 'resourceLocator',
+				default: { mode: 'list', value: '' },
 				displayOptions: { 
 					show: { 
 						operation: ['update', 'delete'],
-						identifyBy: ['lookup']
 					} 
 				},
 				required: true,
-				default: '',
 				description: 'Column name to search in (automatically loaded from Excel headers)',
 				hint: '💡 The list shows all column names from the first row of your Excel file',
+				modes: [
+					{
+						displayName: 'From List',
+						name: 'list',
+						type: 'list',
+						typeOptions: {
+							searchListMethod: 'searchColumnNames',
+							searchable: true,
+						},
+					},
+					{
+						displayName: 'By Name',
+						name: 'name',
+						type: 'string',
+						placeholder: 'e.g. EmployeeID',
+						hint: 'Enter the exact column name from the first row of your Excel file',
+					},
+				],
 			},
 			// Lookup Value (for lookup method)
 			{
@@ -262,7 +280,6 @@ export class ExcelApi implements INodeType {
 				displayOptions: { 
 					show: { 
 						operation: ['update', 'delete'],
-						identifyBy: ['lookup']
 					} 
 				},
 				required: true,
@@ -279,7 +296,6 @@ export class ExcelApi implements INodeType {
 				displayOptions: { 
 					show: { 
 						operation: ['update', 'delete'],
-						identifyBy: ['lookup']
 					} 
 				},
 				options: [
@@ -307,7 +323,7 @@ export class ExcelApi implements INodeType {
 				default: '{\n  "Status": "Done",\n  "UpdatedDate": "2024-01-01"\n}',
 				required: true,
 				description: 'Object with column names as keys and new values',
-				hint: 'Example: {"Status": "{{ $json.status }}", "Salary": {{ $json.salary }}}',
+				hint: 'Example: {{ JSON.stringify({ "Status": $json["status"], "Salary": $json["salary"] }) }}'
 			},
 			// Batch operation
 			{
@@ -335,35 +351,9 @@ export class ExcelApi implements INodeType {
 
 	methods = {
 		loadOptions: {
-			async getExcelFiles(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
-				const credentials = await this.getCredentials('excelApiAuth');
-				const apiUrl = credentials.url as string;
-				const apiToken = credentials.token as string;
-
-				try {
-					const response = await this.helpers.request({
-						method: 'GET',
-						url: `${apiUrl}/api/excel/files`,
-						headers: {
-							'Authorization': `Bearer ${apiToken}`,
-						},
-						json: true,
-					});
-
-					if (response.success && response.files) {
-						return response.files.map((file: string) => ({
-							name: file,
-							value: file,
-						}));
-					}
-					return [];
-				} catch (error) {
-					return [];
-				}
-			},
-
 			async getExcelSheets(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
-				const fileName = this.getNodeParameter('fileName') as string;
+				const fileNameRaw = this.getNodeParameter('fileName') as any;
+				const fileName = (fileNameRaw && typeof fileNameRaw === 'object' ? fileNameRaw.value : fileNameRaw) as string;
 				
 				if (!fileName) {
 					return [];
@@ -397,8 +387,10 @@ export class ExcelApi implements INodeType {
 
 			// ✨ NEW: 獲取欄位名稱（表頭）
 			async getColumnNames(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
-				const fileName = this.getNodeParameter('fileName') as string;
-				const sheetName = this.getNodeParameter('sheetName') as string;
+				const fileNameRaw = this.getNodeParameter('fileName') as any;
+				const fileName = (fileNameRaw && typeof fileNameRaw === 'object' ? fileNameRaw.value : fileNameRaw) as string;
+				const sheetNameRaw = this.getNodeParameter('sheetName') as any;
+				const sheetName = (sheetNameRaw && typeof sheetNameRaw === 'object' ? sheetNameRaw.value : sheetNameRaw) as string;
 				
 				if (!fileName || !sheetName) {
 					return [];
@@ -431,6 +423,110 @@ export class ExcelApi implements INodeType {
 				}
 			},
 		},
+		listSearch: {
+			async searchExcelFiles(this: ILoadOptionsFunctions, filter?: string): Promise<INodeListSearchResult> {
+				const credentials = await this.getCredentials('excelApiAuth');
+				const apiUrl = credentials.url as string;
+				const apiToken = credentials.token as string;
+
+				try {
+					const response = await this.helpers.request({
+						method: 'GET',
+						url: `${apiUrl}/api/excel/files`,
+						headers: { 'Authorization': `Bearer ${apiToken}` },
+						json: true,
+					});
+
+					if (response.success && response.files) {
+						let files: string[] = response.files;
+						if (filter) {
+							const f = filter.toLowerCase();
+							files = files.filter((file: string) => file.toLowerCase().includes(f));
+						}
+						return {
+							results: files.map((file: string) => ({ name: file, value: file })),
+						};
+					}
+					return { results: [] };
+				} catch (error) {
+					return { results: [] };
+				}
+			},
+
+			async searchExcelSheets(this: ILoadOptionsFunctions, filter?: string): Promise<INodeListSearchResult> {
+				const fileNameRaw = this.getNodeParameter('fileName') as any;
+				const fileName = (fileNameRaw && typeof fileNameRaw === 'object' ? fileNameRaw.value : fileNameRaw) as string;
+
+				if (!fileName) {
+					return { results: [] };
+				}
+
+				const credentials = await this.getCredentials('excelApiAuth');
+				const apiUrl = credentials.url as string;
+				const apiToken = credentials.token as string;
+
+				try {
+					const response = await this.helpers.request({
+						method: 'GET',
+						url: `${apiUrl}/api/excel/sheets?file=${encodeURIComponent(fileName)}`,
+						headers: { 'Authorization': `Bearer ${apiToken}` },
+						json: true,
+					});
+
+					if (response.success && response.sheets) {
+						let sheets: string[] = response.sheets;
+						if (filter) {
+							const f = filter.toLowerCase();
+							sheets = sheets.filter((s: string) => s.toLowerCase().includes(f));
+						}
+						return {
+							results: sheets.map((sheet: string) => ({ name: sheet, value: sheet })),
+						};
+					}
+					return { results: [] };
+				} catch (error) {
+					return { results: [] };
+				}
+			},
+
+			async searchColumnNames(this: ILoadOptionsFunctions, filter?: string): Promise<INodeListSearchResult> {
+				const fileNameRaw = this.getNodeParameter('fileName') as any;
+				const fileName = (fileNameRaw && typeof fileNameRaw === 'object' ? fileNameRaw.value : fileNameRaw) as string;
+				const sheetNameRaw = this.getNodeParameter('sheetName') as any;
+				const sheetName = (sheetNameRaw && typeof sheetNameRaw === 'object' ? sheetNameRaw.value : sheetNameRaw) as string;
+
+				if (!fileName || !sheetName) {
+					return { results: [] };
+				}
+
+				const credentials = await this.getCredentials('excelApiAuth');
+				const apiUrl = credentials.url as string;
+				const apiToken = credentials.token as string;
+
+				try {
+					const response = await this.helpers.request({
+						method: 'GET',
+						url: `${apiUrl}/api/excel/headers?file=${encodeURIComponent(fileName)}&sheet=${encodeURIComponent(sheetName)}`,
+						headers: { 'Authorization': `Bearer ${apiToken}` },
+						json: true,
+					});
+
+					if (response.success && response.headers) {
+						let headers: string[] = response.headers;
+						if (filter) {
+							const f = filter.toLowerCase();
+							headers = headers.filter((h: string) => h.toLowerCase().includes(f));
+						}
+						return {
+							results: headers.map((header: string) => ({ name: header, value: header })),
+						};
+					}
+					return { results: [] };
+				} catch (error) {
+					return { results: [] };
+				}
+			},
+		},
 	};
 
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
@@ -443,20 +539,22 @@ export class ExcelApi implements INodeType {
 		const apiUrl = credentials.url as string;
 		const apiToken = credentials.token as string;
 
-		// Common parameters
-		const fileName = this.getNodeParameter('fileName', 0) as string;
-		const sheetName = this.getNodeParameter('sheetName', 0) as string || 'Sheet1';
-
-		if (!fileName) {
-			throw new NodeOperationError(
-				this.getNode(),
-				'File Name is required. Please select an Excel file.',
-			);
-		}
-
 		try {
 			for (let i = 0; i < items.length; i++) {
 				let responseData: any;
+
+				// Common parameters (per-item to support Expression mode)
+				const fileNameRaw = this.getNodeParameter('fileName', i) as any;
+				const fileName = ((fileNameRaw && typeof fileNameRaw === 'object' ? fileNameRaw.value : fileNameRaw) as string) || '';
+				const sheetNameRaw = this.getNodeParameter('sheetName', i) as any;
+				const sheetName = ((sheetNameRaw && typeof sheetNameRaw === 'object' ? sheetNameRaw.value : sheetNameRaw) as string) || '';
+
+				if (!fileName) {
+					throw new NodeOperationError(
+						this.getNode(),
+						'File Name is required. Please select an Excel file.',
+					);
+				}
 
 				if (operation === 'append') {
 					// Get append mode to determine which parameter to use
@@ -474,49 +572,48 @@ export class ExcelApi implements INodeType {
 								`Values to Append must be a valid JSON ${appendMode === 'object' ? 'object' : 'array'}`,
 							);
 						}
-					} else {
+						} else {
 						appendValues = appendValuesRaw;
 					}
 
-				// 自動轉換值的型態
-				const convertedValues = convertObjectValues(appendValues);
+					// 自動轉換值的型態
+					const convertedValues = convertObjectValues(appendValues);
 
-				// Use different API endpoint based on append mode
-				if (appendMode === 'object') {
-					// Object Mode: Use append_object API
-					responseData = await this.helpers.request({
-						method: 'POST',
-						url: `${apiUrl}/api/excel/append_object`,
-						headers: {
-							'Authorization': `Bearer ${apiToken}`,
-							'Content-Type': 'application/json',
-						},
-						body: {
-							file: fileName,
-							sheet: sheetName,
-							values: convertedValues,
-						},
-						json: true,
-					});
-				} else {
-					// Array Mode: Use standard append API
-					responseData = await this.helpers.request({
-						method: 'POST',
-						url: `${apiUrl}/api/excel/append`,
-						headers: {
-							'Authorization': `Bearer ${apiToken}`,
-							'Content-Type': 'application/json',
-						},
-						body: {
-							file: fileName,
-							sheet: sheetName,
-							values: convertedValues,
-					},
-					json: true,
-				});
-			}
-
-		} else if (operation === 'read') {
+					// Use different API endpoint based on append mode
+					if (appendMode === 'object') {
+						// Object Mode: Use append_object API
+						responseData = await this.helpers.request({
+							method: 'POST',
+							url: `${apiUrl}/api/excel/append_object`,
+							headers: {
+								'Authorization': `Bearer ${apiToken}`,
+								'Content-Type': 'application/json',
+							},
+							body: {
+								file: fileName,
+								sheet: sheetName,
+								values: convertedValues,
+							},
+							json: true,
+						});
+					} else {
+						// Array Mode: Use standard append API
+						responseData = await this.helpers.request({
+							method: 'POST',
+							url: `${apiUrl}/api/excel/append`,
+							headers: {
+								'Authorization': `Bearer ${apiToken}`,
+								'Content-Type': 'application/json',
+							},
+							body: {
+								file: fileName,
+								sheet: sheetName,
+								values: convertedValues,
+							},
+							json: true,
+						});
+					}
+				} else if (operation === 'read') {
 					const range = this.getNodeParameter('range', i) as string;
 
 					responseData = await this.helpers.request({
@@ -559,8 +656,6 @@ export class ExcelApi implements INodeType {
 					}
 
 				} else if (operation === 'update') {
-					// Get identification method
-					const identifyBy = this.getNodeParameter('identifyBy', i) as string;
 					const valuesToSetRaw = this.getNodeParameter('valuesToSet', i) as string;
 					
 					let valuesToSet: any;
@@ -587,18 +682,14 @@ export class ExcelApi implements INodeType {
 					values_to_set: convertedValuesToSet,
 				};
 
-				if (identifyBy === 'rowNumber') {
-					const rowNumber = this.getNodeParameter('rowNumber', i) as number;
-						requestBody.row = rowNumber;
-					} else if (identifyBy === 'lookup') {
-						const lookupColumn = this.getNodeParameter('lookupColumn', i) as string;
-						const lookupValue = this.getNodeParameter('lookupValue', i) as string;
-						const processMode = this.getNodeParameter('processMode', i) as string;
-						
-						requestBody.lookup_column = lookupColumn;
-						requestBody.lookup_value = lookupValue;
-						requestBody.process_all = (processMode === 'all');
-					}
+				const lookupColumnRaw = this.getNodeParameter('lookupColumn', i) as any;
+				const lookupColumn = (lookupColumnRaw && typeof lookupColumnRaw === 'object' ? lookupColumnRaw.value : lookupColumnRaw) as string;
+				const lookupValue = this.getNodeParameter('lookupValue', i) as string;
+				const processMode = this.getNodeParameter('processMode', i) as string;
+				
+				requestBody.lookup_column = lookupColumn;
+				requestBody.lookup_value = lookupValue;
+				requestBody.process_all = (processMode === 'all');
 
 					responseData = await this.helpers.request({
 						method: 'PUT',
@@ -615,34 +706,25 @@ export class ExcelApi implements INodeType {
 					if (responseData.success && responseData.updated_count === 0) {
 						throw new NodeOperationError(
 							this.getNode(),
-							identifyBy === 'lookup' 
-								? `No matching rows found. Lookup column: "${requestBody.lookup_column}", Lookup value: "${requestBody.lookup_value}"`
-								: `Row ${requestBody.row} not found or is protected (header row cannot be updated)`,
+							`No matching rows found. Lookup column: "${requestBody.lookup_column}", Lookup value: "${requestBody.lookup_value}"`,
 						);
 					}
 
 				} else if (operation === 'delete') {
-					// Get identification method
-					const identifyBy = this.getNodeParameter('identifyBy', i) as string;
-
 					// Build request body
 					const requestBody: any = {
 						file: fileName,
 						sheet: sheetName,
 					};
 
-					if (identifyBy === 'rowNumber') {
-						const rowNumber = this.getNodeParameter('rowNumber', i) as number;
-						requestBody.row = rowNumber;
-					} else if (identifyBy === 'lookup') {
-						const lookupColumn = this.getNodeParameter('lookupColumn', i) as string;
-						const lookupValue = this.getNodeParameter('lookupValue', i) as string;
-						const processMode = this.getNodeParameter('processMode', i) as string;
-						
-						requestBody.lookup_column = lookupColumn;
-						requestBody.lookup_value = lookupValue;
-						requestBody.process_all = (processMode === 'all');
-					}
+					const lookupColumnRaw = this.getNodeParameter('lookupColumn', i) as any;
+					const lookupColumn = (lookupColumnRaw && typeof lookupColumnRaw === 'object' ? lookupColumnRaw.value : lookupColumnRaw) as string;
+					const lookupValue = this.getNodeParameter('lookupValue', i) as string;
+					const processMode = this.getNodeParameter('processMode', i) as string;
+					
+					requestBody.lookup_column = lookupColumn;
+					requestBody.lookup_value = lookupValue;
+					requestBody.process_all = (processMode === 'all');
 
 					responseData = await this.helpers.request({
 						method: 'DELETE',
@@ -659,9 +741,7 @@ export class ExcelApi implements INodeType {
 					if (responseData.success && responseData.deleted_count === 0) {
 						throw new NodeOperationError(
 							this.getNode(),
-							identifyBy === 'lookup' 
-								? `No matching rows found. Lookup column: "${requestBody.lookup_column}", Lookup value: "${requestBody.lookup_value}"`
-								: `Row ${requestBody.row} not found or is protected (header row cannot be deleted)`,
+							`No matching rows found. Lookup column: "${requestBody.lookup_column}", Lookup value: "${requestBody.lookup_value}"`,
 						);
 					}
 

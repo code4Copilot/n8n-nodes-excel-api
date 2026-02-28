@@ -244,7 +244,7 @@ describe('ExcelApi Node - Type Conversion', () => {
   });
 
   describe('Date Conversion', () => {
-    it('should convert ISO date string', async () => {
+    it('should preserve date-only string without adding time', async () => {
       mockFunctions.setParameter('appendValuesObject', JSON.stringify({
         'CreatedDate': '2024-01-15',
       }), 0);
@@ -262,7 +262,7 @@ describe('ExcelApi Node - Type Conversion', () => {
       await excelApi.execute.call(executeFunctions);
 
       const capturedBody = mockFunctions.getLastRequestBody();
-      expect(capturedBody.values['CreatedDate']).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+      expect(capturedBody.values['CreatedDate']).toBe('2024-01-15');
     });
 
     it('should convert ISO datetime string', async () => {
@@ -338,7 +338,7 @@ describe('ExcelApi Node - Type Conversion', () => {
       expect(capturedBody.values[2]).toBe(true);
       expect(capturedBody.values[3]).toBe(45.67);
       expect(capturedBody.values[4]).toBe(null);
-      expect(capturedBody.values[5]).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+      expect(capturedBody.values[5]).toBe('2024-01-15');
     });
   });
 
@@ -409,7 +409,7 @@ describe('ExcelApi Node - Type Conversion', () => {
       expect(capturedBody.values['Salary']).toBe(50000.50);
       expect(capturedBody.values['IsActive']).toBe(true);
       expect(capturedBody.values['TerminationDate']).toBe(null);
-      expect(capturedBody.values['HireDate']).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+      expect(capturedBody.values['HireDate']).toBe('2020-01-15');
       expect(capturedBody.values['Department']).toBe('IT');
     });
   });
